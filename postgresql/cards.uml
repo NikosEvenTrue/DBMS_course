@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Diagram>
+  <ID>DATABASE</ID>
+  <OriginalElement>e960f5af-3878-4ec7-8880-760f8b25063e.TABLE:postgres.flash_cards_repeat_system.cards</OriginalElement>
+  <nodes>
+    <node x="-436.98400257629214" y="207.5423427041731">e960f5af-3878-4ec7-8880-760f8b25063e.TABLE:postgres.flash_cards_repeat_system.user_descriptions</node>
+    <node x="-436.98400257629214" y="56.39439936709442">e960f5af-3878-4ec7-8880-760f8b25063e.TABLE:postgres.flash_cards_repeat_system.user_settings</node>
+    <node x="-123.74918757798866" y="602.1082456567135">e960f5af-3878-4ec7-8880-760f8b25063e.TABLE:postgres.flash_cards_repeat_system.cards_users_expirations</node>
+    <node x="-193.1018632979446" y="218.87059016921617">e960f5af-3878-4ec7-8880-760f8b25063e.TABLE:postgres.flash_cards_repeat_system.users</node>
+    <node x="353.7176739624477" y="207.60967593802582">e960f5af-3878-4ec7-8880-760f8b25063e.TABLE:postgres.flash_cards_repeat_system.modules</node>
+    <node x="198.03369390477638" y="14.451844681720956">e960f5af-3878-4ec7-8880-760f8b25063e.TABLE:postgres.flash_cards_repeat_system.folder_settings</node>
+    <node x="-214.10186329794453" y="14.451844681720956">e960f5af-3878-4ec7-8880-760f8b25063e.TABLE:postgres.flash_cards_repeat_system.user_credentionals</node>
+    <node x="-34.82868421114716" y="185.87059016921614">e960f5af-3878-4ec7-8880-760f8b25063e.TABLE:postgres.flash_cards_repeat_system.folders</node>
+    <node x="493.401654020119" y="230.60967593802582">e960f5af-3878-4ec7-8880-760f8b25063e.TABLE:postgres.flash_cards_repeat_system.cards_modules</node>
+    <node x="187.03369390477638" y="207.60967593802582">e960f5af-3878-4ec7-8880-760f8b25063e.TABLE:postgres.flash_cards_repeat_system.folders_modules</node>
+    <node x="661.8362680717521" y="207.60967593802584">e960f5af-3878-4ec7-8880-760f8b25063e.TABLE:postgres.flash_cards_repeat_system.cards</node>
+    <node x="361.2174164874084" y="425.54294950028964">e960f5af-3878-4ec7-8880-760f8b25063e.TABLE:postgres.flash_cards_repeat_system.modules_users</node>
+  </nodes>
+  <notes />
+  <edges>
+    <edge source="e960f5af-3878-4ec7-8880-760f8b25063e.TABLE:postgres.flash_cards_repeat_system.cards_modules" target="e960f5af-3878-4ec7-8880-760f8b25063e.TABLE:postgres.flash_cards_repeat_system.modules" relationship="REFERENCES">
+      <point x="4.620724098458595E-4" y="-38.00003777061107" />
+      <point x="561.9021160925288" y="384.0" />
+      <point x="429.7174848926164" y="384.0" />
+      <point x="14.999810930168735" y="49.4997794498031" />
+    </edge>
+    <edge source="e960f5af-3878-4ec7-8880-760f8b25063e.TABLE:postgres.flash_cards_repeat_system.modules_users" target="e960f5af-3878-4ec7-8880-760f8b25063e.TABLE:postgres.flash_cards_repeat_system.users" relationship="REFERENCES">
+      <point x="2.574750393193881E-4" y="-71.50004173329933" />
+      <point x="429.71767396244775" y="366.0" />
+      <point x="-132.10215533980585" y="366.0" />
+      <point x="-2.920418612575304E-4" y="38.50010996412715" />
+    </edge>
+    <edge source="e960f5af-3878-4ec7-8880-760f8b25063e.TABLE:postgres.flash_cards_repeat_system.modules_users" target="e960f5af-3878-4ec7-8880-760f8b25063e.TABLE:postgres.flash_cards_repeat_system.modules" relationship="REFERENCES">
+      <point x="-14.999742524960695" y="-71.50004173329933" />
+      <point x="414.7176739624477" y="366.0761815774096" />
+      <point x="429.7174848926164" y="366.0761815774096" />
+      <point x="14.999810930168735" y="49.4997794498031" />
+    </edge>
+    <edge source="e960f5af-3878-4ec7-8880-760f8b25063e.TABLE:postgres.flash_cards_repeat_system.folders_modules" target="e960f5af-3878-4ec7-8880-760f8b25063e.TABLE:postgres.flash_cards_repeat_system.folders" relationship="REFERENCES">
+      <point x="-31.28293208644976" y="-38.0" />
+      <point x="230.25076181832662" y="386.1025457488262" />
+      <point x="124.67131578885284" y="386.1025457488262" />
+      <point x="76.0" y="71.5" />
+    </edge>
+    <edge source="e960f5af-3878-4ec7-8880-760f8b25063e.TABLE:postgres.flash_cards_repeat_system.user_descriptions" target="e960f5af-3878-4ec7-8880-760f8b25063e.TABLE:postgres.flash_cards_repeat_system.user_settings" relationship="REFERENCES">
+      <point x="1.878087169483912" y="-60.5" />
+      <point x="-356.6059154068082" y="185.33339084063368" />
+      <point x="-349.48400257629214" y="185.33339084063368" />
+      <point x="0.0" y="38.5" />
+    </edge>
+    <edge source="e960f5af-3878-4ec7-8880-760f8b25063e.TABLE:postgres.flash_cards_repeat_system.folders_modules" target="e960f5af-3878-4ec7-8880-760f8b25063e.TABLE:postgres.flash_cards_repeat_system.modules" relationship="REFERENCES">
+      <point x="3.1686141623765707E-4" y="-37.99966637697986" />
+      <point x="261.53401076619264" y="384.0" />
+      <point x="429.7174848926164" y="384.0" />
+      <point x="14.999810930168735" y="49.4997794498031" />
+    </edge>
+    <edge source="e960f5af-3878-4ec7-8880-760f8b25063e.TABLE:postgres.flash_cards_repeat_system.cards_users_expirations" target="e960f5af-3878-4ec7-8880-760f8b25063e.TABLE:postgres.flash_cards_repeat_system.users" relationship="REFERENCES">
+      <point x="-91.5" y="-71.5" />
+      <point x="15.852675719955926" y="38.5" />
+    </edge>
+    <edge source="e960f5af-3878-4ec7-8880-760f8b25063e.TABLE:postgres.flash_cards_repeat_system.modules" target="e960f5af-3878-4ec7-8880-760f8b25063e.TABLE:postgres.flash_cards_repeat_system.users" relationship="REFERENCES">
+      <point x="-1.8906983126498744E-4" y="49.4997794498031" />
+      <point x="414.7174848926164" y="366.0" />
+      <point x="-132.10215533980585" y="366.0" />
+      <point x="-2.920418612575304E-4" y="38.50010996412715" />
+    </edge>
+    <edge source="e960f5af-3878-4ec7-8880-760f8b25063e.TABLE:postgres.flash_cards_repeat_system.user_descriptions" target="e960f5af-3878-4ec7-8880-760f8b25063e.TABLE:postgres.flash_cards_repeat_system.users" relationship="REFERENCES">
+      <point x="9.460014500461966E-5" y="60.499703241937084" />
+      <point x="-358.4839079761471" y="366.0" />
+      <point x="-132.10215533980585" y="366.0" />
+      <point x="-2.920418612575304E-4" y="38.50010996412715" />
+    </edge>
+    <edge source="e960f5af-3878-4ec7-8880-760f8b25063e.TABLE:postgres.flash_cards_repeat_system.folders" target="e960f5af-3878-4ec7-8880-760f8b25063e.TABLE:postgres.flash_cards_repeat_system.users" relationship="REFERENCES">
+      <point x="-79.54263265026907" y="-71.5" />
+      <point x="-30.871316861416233" y="7.176132824054378" />
+      <point x="-132.1018632979446" y="7.176132824054378" />
+      <point x="0.0" y="-38.5" />
+    </edge>
+    <edge source="e960f5af-3878-4ec7-8880-760f8b25063e.TABLE:postgres.flash_cards_repeat_system.cards_users_expirations" target="e960f5af-3878-4ec7-8880-760f8b25063e.TABLE:postgres.flash_cards_repeat_system.cards" relationship="REFERENCES">
+      <point x="99.0" y="0.0" />
+      <point x="775.8233689320389" y="673.6082456567135" />
+      <point x="52.48710086028677" y="49.5" />
+    </edge>
+    <edge source="e960f5af-3878-4ec7-8880-760f8b25063e.TABLE:postgres.flash_cards_repeat_system.folders" target="e960f5af-3878-4ec7-8880-760f8b25063e.TABLE:postgres.flash_cards_repeat_system.folders" relationship="REFERENCES">
+      <point x="21.9573673497309" y="-71.5" />
+      <point x="70.62868313858374" y="168.37059016921614" />
+      <point x="170.95456473671885" y="168.37059016921614" />
+      <point x="170.95456473671885" y="257.37059016921614" />
+      <point x="83.5" y="0.0" />
+    </edge>
+    <edge source="e960f5af-3878-4ec7-8880-760f8b25063e.TABLE:postgres.flash_cards_repeat_system.folders" target="e960f5af-3878-4ec7-8880-760f8b25063e.TABLE:postgres.flash_cards_repeat_system.folder_settings" relationship="REFERENCES">
+      <point x="6.957367349730902" y="-71.5" />
+      <point x="55.62868313858374" y="135.45184468172096" />
+      <point x="0.0" y="60.5" />
+    </edge>
+    <edge source="e960f5af-3878-4ec7-8880-760f8b25063e.TABLE:postgres.flash_cards_repeat_system.user_credentionals" target="e960f5af-3878-4ec7-8880-760f8b25063e.TABLE:postgres.flash_cards_repeat_system.users" relationship="REFERENCES">
+      <point x="0.0" y="-71.5" />
+      <point x="-132.10186329794453" y="257.37059016921614" />
+      <point x="61.0" y="0.0" />
+    </edge>
+    <edge source="e960f5af-3878-4ec7-8880-760f8b25063e.TABLE:postgres.flash_cards_repeat_system.cards_modules" target="e960f5af-3878-4ec7-8880-760f8b25063e.TABLE:postgres.flash_cards_repeat_system.cards" relationship="REFERENCES">
+      <point x="68.50046207240985" y="-3.7770611072573956E-5" />
+      <point x="474.0" y="268.60963816741474" />
+      <point x="474.0" y="351.0" />
+      <point x="760.8233689320389" y="351.0" />
+      <point x="37.48710086028677" y="49.500324061974226" />
+    </edge>
+  </edges>
+  <settings layout="Hierarchic" zoom="0.7396768402154401" showDependencies="false" x="319.46696753640884" y="236.259708737864" />
+  <SelectedNodes>
+    <node>e960f5af-3878-4ec7-8880-760f8b25063e.TABLE:postgres.flash_cards_repeat_system.modules_users</node>
+  </SelectedNodes>
+  <Categories>
+    <Category>Columns</Category>
+    <Category>Comments</Category>
+    <Category>Key columns</Category>
+    <Category>Virtual foreign keys</Category>
+  </Categories>
+</Diagram>
+
