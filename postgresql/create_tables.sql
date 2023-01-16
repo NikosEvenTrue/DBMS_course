@@ -17,7 +17,7 @@ INSERT INTO users(id, name) VALUES (0, 'public');
 -- bind user_id, create trigger
 CREATE TABLE user_descriptions (
 	id serial primary key,
-	profile_description text,
+	profile_description varchar(4096),
 	user_id integer REFERENCES users,
 	user_settings_id integer NOT NULL DEFAULT 1 REFERENCES user_settings
 );
@@ -92,8 +92,8 @@ CREATE TABLE cards_modules (
 
 CREATE TABLE cards_users_expirations (
 	id serial primary key,
-	next_repeat_at timestamp NOT NULL,
-	last_repeated_at timestamp NOT NULL,
+	next_repeat_at timestamptz NOT NULL,
+	last_repeated_at timestamptz NOT NULL,
 	card_id integer NOT NULL REFERENCES cards,
 	user_id integer NOT NULL REFERENCES users
 );
@@ -106,7 +106,7 @@ JOIN cards_users_expirations ON cards.id = cards_users_expirations.card_id
 WHERE cards.id IN (
 	SELECT card_id FROM cards_users_expirations
 	WHERE 
-		next_repeat_at < now()::timestamp AND
+		next_repeat_at < now() AND
 		user_id = _user_id AND
 		card_id IN (SELECT card_id FROM cards_modules 
 					WHERE module_id = _module_id))
@@ -125,7 +125,7 @@ LANGUAGE PLPGSQL AS $$
 		INSERT INTO cards(id ,face, back) VALUES (_card_id, face, back);
 		INSERT INTO cards_modules(card_id, module_id) VALUES (_card_id, _module_id);
 		INSERT INTO cards_users_expirations(next_repeat_at, last_repeated_at, card_id, user_id)
-		VALUES (now()::timestamp, now()::timestamp, _card_id, _user_id);
+		VALUES (now(), now(), _card_id, _user_id);
 		RETURN _card_id;
 	END;
 $$;
@@ -149,6 +149,23 @@ LANGUAGE PLPGSQL AS $$
 		END IF;
 	END;
 $$;
+
+CREATE OR REPLACE VIEW users_cards AS
+SELECT
+    users.id AS user_id,
+    users.name AS user,
+    modules.id AS module_id,
+    modules.name AS module,
+    cards.id AS card_id,
+    cards.face,
+    cards.back,
+    cue.next_repeat_at,
+    cue.last_repeated_at
+FROM users
+JOIN modules ON users.id = modules.user_id
+JOIN cards_modules ON modules.id = cards_modules.module_id
+JOIN cards ON cards_modules.card_id = cards.id
+JOIN cards_users_expirations cue ON cards.id = cue.card_id AND users.id = cue.user_id;
 
 -- CREATE OR REPLACE PROCEDURE delete_card(_user_id integer)
 COMMIT;
