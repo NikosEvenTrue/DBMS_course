@@ -22,12 +22,11 @@ CREATE TABLE user_descriptions (
 	user_settings_id integer NOT NULL DEFAULT 1 REFERENCES user_settings
 );
 
-CREATE TABLE user_credentionals (
+CREATE TABLE user_credentials (
 	id serial primary key,
 	login varchar(32) UNIQUE NOT NULL,
 	password varchar(128) NOT NULL,
-	token varchar(128),
-	user_info_id integer UNIQUE REFERENCES users
+	user_id integer UNIQUE REFERENCES users
 );
 
 
@@ -120,7 +119,7 @@ CREATE OR REPLACE FUNCTION create_card(_user_id integer, _module_id integer,
 RETURNS integer
 LANGUAGE PLPGSQL AS $$
 	DECLARE
-		_card_id integer = nextval('cards_id_seq');
+		_card_id integer = nextval('flash_cards_repeat_system.cards_id_seq');
 	BEGIN
 		INSERT INTO cards(id ,face, back) VALUES (_card_id, face, back);
 		INSERT INTO cards_modules(card_id, module_id) VALUES (_card_id, _module_id);
@@ -150,6 +149,19 @@ LANGUAGE PLPGSQL AS $$
 	END;
 $$;
 
+CREATE OR REPLACE FUNCTION create_user(_login varchar, _password varchar)
+RETURNS integer
+LANGUAGE PLPGSQL AS $$
+    DECLARE
+		_user_id integer = nextval('flash_cards_repeat_system.users_id_seq');
+    BEGIN
+        INSERT INTO users(id, name) VALUES (_user_id, _login);
+        INSERT INTO user_descriptions(user_id) VALUES (_user_id);
+        INSERT INTO user_credentials(login, password, user_id) VALUES (_login, _password, _user_id);
+        RETURN _user_id;
+    END;
+$$;
+
 CREATE OR REPLACE VIEW users_cards AS
 SELECT
     users.id AS user_id,
@@ -169,3 +181,4 @@ JOIN cards_users_expirations cue ON cards.id = cue.card_id AND users.id = cue.us
 
 -- CREATE OR REPLACE PROCEDURE delete_card(_user_id integer)
 COMMIT;
+
