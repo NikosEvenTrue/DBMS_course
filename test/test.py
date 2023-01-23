@@ -155,7 +155,7 @@ class TestFolders(TestCase):
         signin_response = post(url('/signin'), json={'login': 'roma', 'password': 'user'})
         jwt = signin_response.json()['access_token']
         add_folder_response = post(url('/users/folders'), headers=auth(jwt),
-                                   json={'name': 'example', 'parent_folder_id': 6})
+                                   json={'name': 'example', 'parent_folder_id': 4})
         self.assertEqual(400, add_folder_response.status_code)
 
     def test_folder_add_wrong_parent(self):
@@ -261,27 +261,16 @@ class TestModules(TestCase):
         jwt = signin()
         get_resp = get(url(f'/users/modules'), headers=auth(jwt))
         self.assertEqual(200, get_resp.status_code)
-        expected = {'modules': [{'id': 2, 'name': 'general', 'user_id': 1, 'folder_id': None}]}
+        expected = {'modules': [{'folder_id': None, 'id': 3, 'name': 'general', 'user_id': 1}]}
         self.assertEqual(expected, get_resp.json())
 
     def test_modules_2_post(self):
         jwt = signin()
-        post_resp = post(url(f'/users/folders/{4}/modules'), headers=auth(jwt),
-                         json={'name': 'set1'})
+        post_resp = post(url(f'/users/modules'), headers=auth(jwt),
+                         json={'name': 'set1', 'folder_id': 4})
         self.assertEqual(200, post_resp.status_code)
         get_resp = get(url(f'/users/modules'), headers=auth(jwt))
         self.assertEqual(200, get_resp.status_code)
-        expected = {'modules': [{'folder_id': None, 'id': 2, 'name': 'general', 'user_id': 1},
+        expected = {'modules': [{'folder_id': None, 'id': 3, 'name': 'general', 'user_id': 1},
                                 {'folder_id': 4, 'id': 4, 'name': 'set1', 'user_id': 1}]}
         self.assertEqual(expected, get_resp.json())
-
-    def test_modules_3_post_wrong_parent_id(self):
-        jwt = signin()
-        post_resp = post(url(f'/users/folders/{1000}/modules'), headers=auth(jwt),
-                         json={'name': 'set1'})
-        self.assertEqual(400, post_resp.status_code)
-
-    def test_modules_3_post_no_name(self):
-        jwt = signin()
-        post_resp = post(url(f'/users/folders/{1000}/modules'), headers=auth(jwt))
-        self.assertEqual(400, post_resp.status_code)

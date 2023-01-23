@@ -75,21 +75,22 @@ CREATE TABLE modules_cards (
 	PRIMARY KEY (card_id, module_id)
 );
 
-CREATE TABLE cards_users_expirations (
-	id serial primary key,
+CREATE TABLE users_cards_expirations (
 	next_repeat_at timestamptz NOT NULL,
 	last_repeated_at timestamptz NOT NULL,
+	user_id integer NOT NULL REFERENCES users ON DELETE CASCADE,
 	card_id integer NOT NULL REFERENCES cards ON DELETE CASCADE,
-	user_id integer NOT NULL REFERENCES users ON DELETE CASCADE
+	primary key (user_id, card_id)
 );
 
 CREATE OR REPLACE FUNCTION ready_cards(_user_id integer, _module_id integer)
 RETURNS TABLE(id integer, face varchar, back varchar)
 LANGUAGE SQL AS $$
 SELECT cards.id, face, back FROM cards
-JOIN cards_users_expirations ON cards.id = cards_users_expirations.card_id
+JOIN users_cards_expirations ON cards.id = users_cards_expirations.card_id
+    AND users_cards_expirations.user_id = _user_id
 WHERE cards.id IN (
-	SELECT card_id FROM cards_users_expirations
+	SELECT card_id FROM users_cards_expirations
 	WHERE
 		next_repeat_at < now() AND
 		user_id = _user_id AND
@@ -103,11 +104,11 @@ CREATE OR REPLACE FUNCTION create_card(_user_id integer, _module_id integer,
 RETURNS integer
 LANGUAGE PLPGSQL AS $$
 	DECLARE
-		_card_id integer = nextval('flash_cards_repeat_system.cards_id_seq');
+		_card_id integer;
 	BEGIN
-		INSERT INTO cards(id ,face, back) VALUES (_card_id, face, back);
-		INSERT INTO modules_cards(card_id, module_id) VALUES (_card_id, _module_id);
-		INSERT INTO cards_users_expirations(next_repeat_at, last_repeated_at, card_id, user_id)
+		INSERT INTO cards(face, back) VALUES (face, back) RETURNING id INTO _card_id;
+        INSERT INTO modules_cards(card_id, module_id) VALUES (_card_id, _module_id);
+		INSERT INTO users_cards_expirations(next_repeat_at, last_repeated_at, card_id, user_id)
 		VALUES (now(), now(), _card_id, _user_id);
 		RETURN _card_id;
 	END;
@@ -118,7 +119,7 @@ RETURNS integer
 LANGUAGE  PLPGSQL AS $$
     BEGIN
        INSERT INTO modules_cards VALUES (_module_id, _card_id);
-       INSERT INTO cards_users_expirations(next_repeat_at, last_repeated_at, card_id, user_id)
+       INSERT INTO users_cards_expirations(next_repeat_at, last_repeated_at, card_id, user_id)
         VALUES (now(), now(), _card_id, _user_id);
        RETURN _card_id;
     END;
@@ -127,26 +128,7 @@ $$;
 CREATE OR REPLACE FUNCTION count_owners(_card_id integer)
 RETURNS integer
 LANGUAGE SQL AS $$
-        SELECT COUNT(DISTINCT user_id) FROM modules_cards
-            JOIN modules ON modules.id = module_id WHERE card_id = _card_id;
-$$;
-
-CREATE OR REPLACE PROCEDURE update_card(_user_id integer, _module_id integer, _card_id integer,
-	_face varchar, _back varchar)
-LANGUAGE PLPGSQL AS $$
-	DECLARE
-		_new_card_id integer;
-	BEGIN
-		IF count_owners(_card_id) = 1 THEN
-		    UPDATE cards SET face = _face, back = _back WHERE id = _card_id;
-		ELSE
-			_new_card_id = (SELECT create_card(_user_id, _module_id, _face, _back));
-			UPDATE modules_cards SET card_id = _new_card_id WHERE card_id = _card_id
-				AND module_id = _module_id;
-			UPDATE cards_users_expirations SET card_id = _new_card_id WHERE card_id = _card_id
-				AND user_id = _user_id;
-		END IF;
-	END;
+        SELECT COUNT(DISTINCT module_id) FROM modules_cards WHERE card_id = _card_id;
 $$;
 
 CREATE OR REPLACE FUNCTION create_user(_login varchar, _password varchar)
@@ -188,8 +170,7 @@ LANGUAGE PLPGSQL AS $$
         folder_id integer;
     BEGIN
         IF NEW.id = NEW.parent_folder_id THEN
-            RAISE NOTICE 'the folder(id = %) can''t be a parent(id = %) of itself', NEW.id, NEW.parent_folder_id;
-            RETURN null;
+            RAISE EXCEPTION 'the folder(id = %) can''t be a parent(id = %) of itself', NEW.id, NEW.parent_folder_id;
         END IF;
         FOR folder_id IN
             SELECT id FROM folders
@@ -222,7 +203,7 @@ FROM users
 JOIN modules ON users.id = modules.user_id
 JOIN modules_cards ON modules.id = modules_cards.module_id
 JOIN cards ON modules_cards.card_id = cards.id
-JOIN cards_users_expirations cue ON cards.id = cue.card_id AND users.id = cue.user_id;
+JOIN users_cards_expirations cue ON cards.id = cue.card_id AND users.id = cue.user_id;
 
 COMMIT;
 
