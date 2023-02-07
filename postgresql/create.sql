@@ -1,12 +1,24 @@
 BEGIN;
-SET search_path TO flash_cards_repeat_system;
+SHOW search_path;
+
+DROP TABLE IF EXISTS users_modules_public CASCADE;
+DROP TABLE IF EXISTS evaluations CASCADE;
+DROP TABLE IF EXISTS modules_tags CASCADE;
+DROP TABLE IF EXISTS tags CASCADE;
+DROP TABLE IF EXISTS modules_cards CASCADE;
+DROP TABLE IF EXISTS cards CASCADE;
+DROP TABLE IF EXISTS modules CASCADE;
+DROP TABLE IF EXISTS folders CASCADE;
+DROP TABLE IF EXISTS folder_settings CASCADE;
+DROP TABLE IF EXISTS user_credentials CASCADE;
+DROP TABLE IF EXISTS user_descriptions CASCADE;
+DROP TABLE IF EXISTS users CASCADE ;
+DROP TABLE IF EXISTS user_settings CASCADE;
 
 CREATE TABLE user_settings (
 	id serial primary key,
 	interface_language char(5)
 );
-
-INSERT INTO user_settings(interface_language) VALUES ('EN-en'), ('RU-ru');
 
 CREATE TABLE users (
 	id serial primary key,
@@ -26,7 +38,6 @@ CREATE TABLE user_credentials (
 	user_id integer UNIQUE REFERENCES users ON DELETE CASCADE
 );
 
-
 CREATE TABLE folder_settings (
 	id serial primary key,
 	color integer NOT NULL,
@@ -34,10 +45,6 @@ CREATE TABLE folder_settings (
 	viev smallint NOT NULL
 );
 
-INSERT INTO folder_settings(color, icon_size, viev)
-VALUES (0, 16, 1), (1, 10, 2);
-
--- can't have cycle links, create a trigger
 CREATE TABLE folders (
 	id serial primary key,
 	name varchar(32) NOT NULL,
@@ -51,16 +58,6 @@ CREATE TABLE modules (
 	name varchar(32) NOT NULL,
 	user_id integer REFERENCES users ON DELETE CASCADE,
 	folder_id integer REFERENCES folders ON DELETE CASCADE
--- 	,author_id integer REFERENCES users ON DELETE SET NULL
-);
-
-CREATE TABLE module_public_info (
-	module_id integer REFERENCES modules,
-	user_id integer REFERENCES users,
-	liked integer DEFAULT 0,
-	disliked integer DEFAULT 0,
-	followed integer DEFAULT 0,
-	PRIMARY KEY (module_id, user_id)
 );
 
 CREATE TABLE cards (
@@ -72,31 +69,42 @@ CREATE TABLE cards (
 CREATE TABLE modules_cards (
     module_id integer REFERENCES modules ON DELETE CASCADE,
 	card_id integer REFERENCES cards ON DELETE CASCADE,
+	next_repeat_at timestamptz NOT NULL DEFAULT now(),
+	last_repeated_at timestamptz NOT NULL DEFAULT now(),
 	PRIMARY KEY (card_id, module_id)
 );
 
-CREATE TABLE users_cards_expirations (
-	next_repeat_at timestamptz NOT NULL,
-	last_repeated_at timestamptz NOT NULL,
-	user_id integer NOT NULL REFERENCES users ON DELETE CASCADE,
-	card_id integer NOT NULL REFERENCES cards ON DELETE CASCADE,
-	primary key (user_id, card_id)
+CREATE TABLE tags (
+    id serial PRIMARY KEY,
+    name varchar(32) NOT NULL UNIQUE
 );
 
-CREATE OR REPLACE FUNCTION ready_cards(_user_id integer, _module_id integer)
+CREATE TABLE modules_tags (
+    module_id integer REFERENCES modules,
+    tag_id integer REFERENCES tags,
+    PRIMARY KEY (module_id, tag_id)
+);
+
+CREATE TABLE evaluations (
+    id serial PRIMARY KEY,
+    name varchar(8) NOT NULL UNIQUE
+);
+
+CREATE TABLE users_modules_public (
+    id serial PRIMARY KEY,
+    user_id integer REFERENCES users ON DELETE SET NULL,
+    module_id integer REFERENCES modules ON DELETE CASCADE,
+    comment varchar(216),
+    evaluation_id integer REFERENCES evaluations
+);
+
+CREATE OR REPLACE FUNCTION ready_cards(_module_id integer)
 RETURNS TABLE(id integer, face varchar, back varchar)
 LANGUAGE SQL AS $$
-SELECT cards.id, face, back FROM cards
-JOIN users_cards_expirations ON cards.id = users_cards_expirations.card_id
-    AND users_cards_expirations.user_id = _user_id
-WHERE cards.id IN (
-	SELECT card_id FROM users_cards_expirations
-	WHERE
-		next_repeat_at < now() AND
-		user_id = _user_id AND
-		card_id IN (SELECT card_id FROM modules_cards
-					WHERE module_id = _module_id))
-ORDER BY last_repeated_at DESC;
+    SELECT cards.id, face, back FROM cards
+    JOIN modules_cards mc ON cards.id = mc.card_id
+    WHERE mc.next_repeat_at < now() AND mc.module_id = _module_id
+    ORDER BY mc.last_repeated_at DESC;
 $$;
 
 CREATE OR REPLACE FUNCTION create_card(_user_id integer, _module_id integer,
@@ -107,9 +115,8 @@ LANGUAGE PLPGSQL AS $$
 		_card_id integer;
 	BEGIN
 		INSERT INTO cards(face, back) VALUES (face, back) RETURNING id INTO _card_id;
-        INSERT INTO modules_cards(card_id, module_id) VALUES (_card_id, _module_id);
-		INSERT INTO users_cards_expirations(next_repeat_at, last_repeated_at, card_id, user_id)
-		VALUES (now(), now(), _card_id, _user_id);
+        INSERT INTO modules_cards(card_id, module_id, next_repeat_at, last_repeated_at)
+            VALUES (_card_id, _module_id, now(), now());
 		RETURN _card_id;
 	END;
 $$;
@@ -118,9 +125,7 @@ CREATE OR REPLACE FUNCTION copy_card(_user_id integer, _module_id integer, _card
 RETURNS integer
 LANGUAGE  PLPGSQL AS $$
     BEGIN
-       INSERT INTO modules_cards VALUES (_module_id, _card_id);
-       INSERT INTO users_cards_expirations(next_repeat_at, last_repeated_at, card_id, user_id)
-        VALUES (now(), now(), _card_id, _user_id);
+       INSERT INTO modules_cards VALUES (_module_id, _card_id, now(), now());
        RETURN _card_id;
     END;
 $$;
@@ -149,7 +154,7 @@ LANGUAGE SQL AS $$
     DELETE FROM cards WHERE count_owners(id) = 0;
 $$;
 
-CREATE OR REPLACE FUNCTION delete_unlinked_cards()
+CREATE OR REPLACE FUNCTION delete_unlinked_cards_and_user_expiration()
 RETURNS trigger
 LANGUAGE PLPGSQL AS $$
     BEGIN
@@ -161,7 +166,7 @@ $$;
 CREATE OR REPLACE TRIGGER on_module_delete
     AFTER DELETE ON modules
     FOR EACH ROW
-    EXECUTE FUNCTION delete_unlinked_cards();
+    EXECUTE FUNCTION delete_unlinked_cards_and_user_expiration();
 
 CREATE OR REPLACE FUNCTION check_cycle_parents()
 RETURNS trigger
@@ -197,13 +202,11 @@ SELECT
     cards.id AS card_id,
     cards.face,
     cards.back,
-    cue.next_repeat_at,
-    cue.last_repeated_at
+    mc.next_repeat_at,
+    mc.last_repeated_at
 FROM users
 JOIN modules ON users.id = modules.user_id
-JOIN modules_cards ON modules.id = modules_cards.module_id
-JOIN cards ON modules_cards.card_id = cards.id
-JOIN users_cards_expirations cue ON cards.id = cue.card_id AND users.id = cue.user_id;
+JOIN modules_cards mc ON modules.id = mc.module_id
+JOIN cards ON mc.card_id = cards.id;
 
 COMMIT;
-

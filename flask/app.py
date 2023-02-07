@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import timedelta, date
 
 from flask import Flask, make_response
 from flask import jsonify
@@ -13,13 +13,14 @@ from flask_jwt_extended import JWTManager
 from jsonschema.exceptions import ValidationError
 from sqlalchemy import func, inspect, select, column, text
 from sqlalchemy.exc import IntegrityError, InternalError
+from psycopg2.errors import ForeignKeyViolation
 
 from config import cfg
 
 app = Flask(__name__)
 
 app.config['JWT_SECRET_KEY'] = cfg.SECRET_KEY
-app.config['SQLALCHEMY_DATABASE_URI'] = f'postgresql+psycopg2://postgres:{cfg.PGPASSWORD}' \
+app.config['SQLALCHEMY_DATABASE_URI'] = f'postgresql+psycopg2://{cfg.USER}:{cfg.PGPASSWORD}' \
                                         f'@{cfg.POSTGRES_ADDRESS}:{cfg.POSTGRES_PORT}' \
                                         f'/{cfg.POSTGRES_DB}?options=-csearch_path={cfg.POSTGRES_SCHEMA}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -77,8 +78,16 @@ class ModuleCard(db.Model):
     __table__ = db.metadata.tables['modules_cards']
 
 
-class UserCardExpiration(db.Model):
-    __table__ = db.metadata.tables['users_cards_expirations']
+class ModuleTag(db.Model):
+    __table__ = db.metadata.tables['modules_tags']
+
+
+class Tag(db.Model, Serializer):
+    __table__ = db.metadata.tables['tags']
+
+
+class UserModulePublic(db.Model, Serializer):
+    __table__ = db.metadata.tables['users_modules_public']
 
 
 @app.errorhandler(400)
@@ -121,7 +130,7 @@ def signin():
     if not user_credentials or not user_credentials.check_password(request.json.get('password')):
         return jsonify(error='Wrong username or password'), 401
     access_token = create_access_token(identity=user_credentials)
-    return jsonify(access_token=access_token)
+    return jsonify(access_token=access_token, user_id=user_credentials.user_id)
 
 
 # FIXME users_nex_val skip integer when exception
@@ -134,7 +143,7 @@ def signup():
         db.session.commit()
     except IntegrityError as ex:
         return jsonify(error='User with such login already exists'), 400
-    return jsonify(id=user_id)
+    return jsonify(user_id=user_id)
 
 
 @app.post('/logout')
@@ -144,14 +153,49 @@ def logout():
     return jsonify(id=current_user.id)
 
 
-@app.route('/users', methods=['GET', 'PATCH', 'DELETE'])
-@jwt_required()
-def users():
-    user = User.query.get(current_user.id)
-    user_description = UserDescription.query.filter_by(user_id=current_user.id).first()
+def id_validator(func):
+    def decor(*args, **kwargs):
+        try:
+            ids = []
+            for name, _id in kwargs.items():
+                ids.append(int(_id))
+        except ValueError:
+            return jsonify(error=f'wrong {name}({_id})'), 400
+        return func(*ids)
+
+    decor.__name__ = func.__name__
+    return decor
+
+
+def user_validator(func):
+    def decor(*args):
+        if current_user.id != args[0]:
+            return jsonify(error=f'you have no permission to perform {request.method} with user({args[0]})'), 403
+        user = User.query.get(args[0])
+        if not user:
+            return jsonify(error=f'no user with id = {args[0]}'), 400
+        return func(*args)
+
+    decor.__name__ = func.__name__
+    return decor
+
+
+# TODO optional description
+@app.route('/users/<user_id>', methods=['GET', 'PATCH', 'DELETE'])
+@jwt_required(optional=True)
+@id_validator
+def users_id(user_id):
+    user = User.query.get(user_id)
+    user_description = UserDescription.query.filter_by(user_id=user_id).first()
+    if not user:
+        return jsonify(error=f'no user with id = {user_id}'), 400
     if request.method == 'GET':
-        return jsonify(name=user.name, description=user_description.profile_description)
-    elif request.method == 'PATCH':
+        return jsonify(user={'name': user.name, 'description': user_description.profile_description})
+    if not current_user:
+        return jsonify(error=f'Unauthorized'), 401
+    if current_user.id != user_id:
+        return jsonify(error=f'you have no permission to perform {request.method} with user({user_id})'), 403
+    if request.method == 'PATCH':
         user.name = request.json.get('name', user.name)
         user_description.profile_description = request.json.get('description', user_description.profile_description)
         db.session.commit()
@@ -164,44 +208,41 @@ def users():
         return jsonify(id=user_id, deleted=True)
 
 
-@app.route('/users/<_id>', methods=['GET'])
-def users_id(_id):
-    user = User.query.get(_id)
-    user_description = UserDescription.query.filter_by(user_id=_id).first()
-    if user:
-        return jsonify(user={'name': user.name, 'description': user_description.profile_description})
-    else:
-        return jsonify(error=f'no user with id = {_id}'), 400
-
-
-@app.route('/users/folders', methods=['GET', "POST"])
+@app.route('/users/<u_id>/folders', methods=['GET', "POST"])
 @jwt_required()
-def folders():
+@id_validator
+@user_validator
+def folders(user_id):
     if request.method == 'GET':
         _folders = Folder.query.filter_by(user_id=current_user.id).all()
         return jsonify(folders=Folder.serialize_list(_folders))
     else:
+        folder_name = request.json.get('name')
+        if folder_name is None:
+            return jsonify(error='parameter name is required'), 400
         parent_folder_id = request.json.get('parent_folder_id')
-        parent_folder = Folder.query.get(parent_folder_id)
-        if not parent_folder:
-            return jsonify(error=f'no such parent folder, parent_folder_id = {parent_folder_id}'), 400
-        if parent_folder.user_id == current_user.id:
-            try:
-                folder = Folder(name=request.json.get('name'),
-                                parent_folder_id=parent_folder_id,
-                                user_id=current_user.id)
-                db.session.add(folder)
-                db.session.commit()
-            except IntegrityError as ex:
-                return jsonify(error=str(ex)), 400
-            return jsonify(folder=folder.serialize())
+        if parent_folder_id is not None:
+            parent_folder = Folder.query.get(parent_folder_id)
+            if not parent_folder:
+                return jsonify(error=f'no such parent folder, parent_folder_id = {parent_folder_id}'), 400
+            if parent_folder.user_id != current_user.id:
+                return jsonify(error=f'you aren\'t parent folder owner, parent_folder_id = {parent_folder_id}'), 400
+            folder = Folder(name=folder_name,
+                            parent_folder_id=parent_folder_id,
+                            user_id=current_user.id)
         else:
-            return jsonify(error=f'you aren\'t parent folder owner, parent_folder_id = {parent_folder_id}'), 400
+            folder = Folder(name=folder_name,
+                            user_id=current_user.id)
+        db.session.add(folder)
+        db.session.commit()
+        return jsonify(folder=folder.serialize())
 
 
-@app.route('/users/folders/<folder_id>', methods=['GET', 'PATCH', 'DELETE'])
+@app.route('/users/<user_id>/folders/<folder_id>', methods=['GET', 'PATCH', 'DELETE'])
 @jwt_required()
-def folders_id(folder_id):
+@id_validator
+@user_validator
+def folders_id(user_id, folder_id):
     folder = Folder.query.get(folder_id)
     if folder:
         if folder.user_id == current_user.id:
@@ -229,14 +270,7 @@ def folders_id(folder_id):
         else:
             return jsonify(error=f'you aren\'t folder owner, folder_id = {folder_id}'), 400
     else:
-        return f'not such folder, folder_id = {folder_id}', 400
-
-
-@app.route('/users/modules', methods=['GET'])
-@jwt_required()
-def modules():
-    _modules = Module.query.filter_by(user_id=current_user.id)
-    return jsonify(modules=Module.serialize_list(_modules))
+        return jsonify(error=f'not such folder, folder_id = {folder_id}'), 400
 
 
 schema_module = {
@@ -249,30 +283,103 @@ schema_module = {
 }
 
 
-@app.route('/users/modules', methods=['POST'])
+@app.route('/users/<user_id>/modules', methods=['GET', 'POST'])
 @jwt_required()
-@expects_json(schema_module)
-def modules_fid():
-    try:
-        module = Module(name=request.json['name'], user_id=current_user.id, folder_id=request.json['folder_id'])
-        db.session.add(module)
-        db.session.commit()
-    except IntegrityError as ex:
-        return jsonify(error=str(ex)), 400
-    return jsonify(module=module.serialize())
+@expects_json(schema_module, ignore_for=['GET'])
+@id_validator
+def modules(user_id):
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify(error=f'no user with id = {user_id}'), 400
+    if request.method == 'GET':
+        _modules = Module.query.filter_by(user_id=user_id)
+        if current_user.id == user_id:
+            return jsonify(modules=Module.serialize_list(_modules))
+        else:
+            public_modules_ids = ModuleTag.query.distinct(ModuleTag.module_id). \
+                filter(ModuleTag.module_id.in_([m.id for m in _modules])).all()
+            public_modules = [m for m in _modules if m.id in [m.module_id for m in public_modules_ids]]
+            return jsonify(modules=Module.serialize_list(public_modules))
+    else:
+        if current_user.id != user_id:
+            return jsonify(error=f'you have no permission to perform {request.method} with user({user_id})'), 403
+        try:
+            module = Module(name=request.json['name'], user_id=current_user.id, folder_id=request.json['folder_id'])
+            db.session.add(module)
+            db.session.commit()
+        except IntegrityError as ex:
+            return jsonify(error=str(ex)), 400
+        return jsonify(module=module.serialize())
 
 
-@app.route('/users/modules/<module_id>', methods=['GET', 'PATCH', 'DELETE'])
+@app.route('/users/<user_id>/modules/<module_id>', methods=['GET', 'PATCH', 'DELETE', 'POST', 'COPY'])
 @jwt_required()
-def modules_fid_id(module_id):
+@id_validator
+def modules_id(user_id, module_id):
     module = Module.query.get(module_id)
+    is_public = ModuleTag.query.filter_by(module_id=module_id).first()
     if not module:
         return jsonify(error=f'no such module with id = {module_id}')
+    if module.user_id != current_user.id and not is_public:
+        return jsonify(error=f'you aren\'t module owner, module id = {module_id}')
+    if request.method == 'POST':
+        if module.user_id != current_user.id:
+            evaluation_id = request.json.get('evaluation_id')
+            if evaluation_id is None:
+                return jsonify(error='parameter evaluation_id is required'), 400
+            comment = request.json.get('comment')
+            user_module_public = UserModulePublic.query.filter_by(user_id=current_user.id,
+                                                                  module_id=module_id).first()
+            if user_module_public is None:
+                user_module_public = UserModulePublic(user_id=current_user.id,
+                                                      module_id=modules_id,
+                                                      evaluation_id=evaluation_id,
+                                                      comment=comment)
+                db.session.add(user_module_public)
+            else:
+                user_module_public.evaluation_id = evaluation_id
+                user_module_public.comment = user_module_public.comment if comment is None else comment
+            db.session.commit()
+            return jsonify(public=user_module_public.serialize())
+        else:
+            tag_ids = request.json.get('public_tags')
+            if not tag_ids:
+                return jsonify(error='tags can\'t be empty'), 400
+            already_tagged = ModuleTag.query.filter_by(module_id=module_id).all()
+            if already_tagged:
+                already_tags = [mt.tag_id for mt in already_tagged]
+                tag_ids = list(filter(lambda tag_id: tag_id not in already_tags, tag_ids))
+                msg = f'module({module_id}) already has tags({already_tags}), added new tags({tag_ids})'
+            else:
+                msg = f"module({module_id}) is published with tags({tag_ids})"
+            modules_tags = [ModuleTag(module_id=module_id, tag_id=tag_id) for tag_id in tag_ids]
+            db.session.add_all(modules_tags)
+            try:
+                db.session.commit()
+            except IntegrityError as ex:
+                if type(ex.orig) == ForeignKeyViolation:
+                    return jsonify(error='no such tag id')
+                raise ex
+            return jsonify(msg=msg)
+    if request.method == 'COPY':
+        new_folder_id = request.json.get('folder_id')
+        new_module = Module(name=module.name, user_id=current_user.id, folder_id=new_folder_id)
+        db.session.add(new_module)
+        db.session.commit()
+        modules_cards = ModuleCard.query.filter_by(module_id=module_id).all()
+        new_modules_cards = [ModuleCard(module_id=new_module.id, card_id=mc.card_id)
+                             for mc in modules_cards]
+        db.session.add_all(new_modules_cards)
+        db.session.commit()
+        return jsonify(module=new_module.serialize())
+    elif request.method == 'GET':
+        if request.args.get('public_info') in ['True', 'true', 'T', 't']:
+            public_info = UserModulePublic.query.filter_by(module_id=module_id).all()
+            return jsonify(evaluations=UserModulePublic.serialize_list(public_info))
+        return jsonify(module=module.serialize())
     if module.user_id != current_user.id:
         return jsonify(error=f'you aren\'t module owner, module id = {module_id}')
-    if request.method == 'GET':
-        return jsonify(module=module.serialize())
-    elif request.method == 'PATCH':
+    if request.method == 'PATCH':
         try:
             module.name = request.json.get('name', module.name)
             module.folder_id = request.json.get('folder_id', module.folder_id)
@@ -280,7 +387,7 @@ def modules_fid_id(module_id):
         except IntegrityError as ex:
             return jsonify(error=str(ex)), 400
         return jsonify(folder=module.serialize())
-    else:
+    elif request.method == 'DELETE':
         db.session.delete(module)
         db.session.commit()
         return jsonify(module_id=module.id, deleted=True)
@@ -296,24 +403,31 @@ schema_cards = {
 }
 
 
-@app.route('/users/modules/<module_id>/cards', methods=['GET', 'POST'])
+@app.route('/users/<user_id>/modules/<module_id>/cards', methods=['GET', 'POST'])
 @jwt_required()
 @expects_json(schema_cards, ignore_for=['GET'])
-def cards(module_id):
+@id_validator
+def cards(user_id, module_id):
     module = Module.query.get(module_id)
+    is_public = ModuleTag.query.filter_by(module_id=module_id).first()
     if not module:
         return jsonify(error=f'no such module with id = {module_id}'), 400
-    if module.user_id != current_user.id:
-        return jsonify(error=f'you aren\'t module owner with id = {module_id}')
     if request.method == 'GET':
-        ready = request.args.get('ready')
-        if ready in ['True', 'true', 'T', 't']:
-            ready_cards = db.session.execute(text(f'select * from ready_cards({current_user.id}, {module_id})')).all()
-            return jsonify(cards=Card.serialize_list(Card(id=c.id, face=c.face, back=c.back) for c in ready_cards))
-        else:
+        if module.user_id != current_user.id and not is_public:
+            return jsonify(error=f'you aren\'t module owner with id = {module_id}')
+        if module.user_id != current_user.id:
             _cards = Card.query.join(ModuleCard).filter(ModuleCard.module_id == module_id).all()
             return jsonify(cards=Card.serialize_list(_cards))
-    else:
+        _cards = db.session.query(Card.id, Card.face, Card.back,
+                                  ModuleCard.next_repeat_at, ModuleCard.last_repeated_at
+                                  ).join(ModuleCard).filter(ModuleCard.module_id == module_id).all()
+        return jsonify(cards=[{'id': c.id, 'face': c.face, 'back': c.back,
+                               'next_repeat_at': c.next_repeat_at,
+                               'last_repeated_at': c.last_repeated_at}
+                              for c in _cards])
+    if module.user_id != current_user.id:
+        return jsonify(error=f'you aren\'t module owner with id = {module_id}')
+    if request.method == 'POST':
         card_id = db.session.query(func.create_card(current_user.id, module_id,
                                                     request.json.get('face'), request.json.get('back'))).first()[0]
         db.session.commit()
@@ -321,51 +435,91 @@ def cards(module_id):
         return jsonify(card=card.serialize())
 
 
-@app.route('/users/modules/<module_id>/cards/<card_id>', methods=['GET', 'PATCH', 'DELETE'])
+@app.route('/users/<user_id>/modules/<module_id>/cards/<card_id>', methods=['GET', 'PATCH', 'DELETE', 'COPY'])
 @jwt_required()
-def cards_id(module_id, card_id):
+@id_validator
+def cards_id(user_id, module_id, card_id):
     module = Module.query.get(module_id)
+    is_public = ModuleTag.query.filter_by(module_id=module_id).first()
     if not module:
         return jsonify(error=f'no such module with id = {module_id}')
-    if module.user_id != current_user.id:
+    if module.user_id != current_user.id and not is_public:
         return jsonify(error=f'you aren\'t owner of the module with id = {module_id}')
     card = Card.query.join(ModuleCard).filter_by(module_id=module_id, card_id=card_id).first()
     if not card:
         return jsonify(error=f'no such card with id = {card_id} in module with id = {module_id}')
     if request.method == 'GET':
-        return jsonify(card=card.serialize())
-    elif request.method == 'PATCH':
+        if module.user_id != current_user.id:
+            return jsonify(card=Card.query.filter_by(id=card_id).first().serialize())
+        expiration = ModuleCard.query.filter_by(module_id=module_id, card_id=card_id).first()
+        return jsonify(card={'id': card.id, 'face': card.face, 'back': card.back,
+                             'next_repeat_at': expiration.next_repeat_at,
+                             'last_repeated_at': expiration.last_repeated_at})
+    if request.method == 'COPY':
+        new_module_id = request.json.get('module_id')
+        if new_module_id is None:
+            return jsonify(error='parament module_id is required'), 400
+        new_module = Module.query.filter_by(id=new_module_id).first()
+        if new_module.user_id != current_user.id:
+            return jsonify(error=f'you aren\'t owner of the module with id = {new_module_id}')
+        module_card = ModuleCard(module_id=new_module_id, card_id=card_id)
+        db.session.add(module_card)
+        try:
+            db.session.commit()
+            return jsonify(card={'id': card.id, 'face': card.face, 'back': card.back,
+                                 'next_repeat_at': module_card.next_repeat_at,
+                                 'last_repeated_at': module_card.last_repeated_at})
+        except IntegrityError as ex:
+            return jsonify(error=f'the card({card_id}) already in the module({module_id})')
+    if module.user_id != current_user.id:
+        return jsonify(error=f'you aren\'t owner of the module with id = {module_id}')
+    if request.method == 'PATCH':
+        # FIXME
         parent_module = Module.query.get(request.json.get('module_id'))
-        user_card_expiration = UserCardExpiration.query.filter_by(user_id=current_user.id,
-                                                                  card_id=card_id).first()
-        if request.json.get('face') or request.json.get('back'):
+        _module_card = ModuleCard.query.filter_by(module_id=module_id, card_id=card_id).first()
+        face = request.json.get('face')
+        back = request.json.get('back')
+        if (face or back) and (face != card.face or back != card.back):
             if parent_module and parent_module.user_id != current_user.id:
                 return jsonify(error=f'you aren\'t owner of the module with id = {request.json.get("module_id")}')
-            module_card = ModuleCard.query.filter_by(module_id=module_id, card_id=card_id).first()
             count_card_owners = db.session.query(func.count_owners(card_id)).first()[0]
             if count_card_owners != 1:
                 card = Card(face=request.json.get('face', card.face), back=request.json.get('back', card.back))
                 db.session.add(card)
                 db.session.commit()
-                module_card.card_id = card.id
-                user_card_expiration.card_id = card.id
+                _module_card.card_id = card.id
             else:
                 card.face = request.json.get('face', card.face)
                 card.back = request.json.get('back', card.back)
-        module_card.module_id = request.json.get('module_id', module_card.module_id)
-        print(user_card_expiration.next_repeat_at)
-        user_card_expiration.next_repeat_at = request.json.get('next_repeat_at', user_card_expiration.next_repeat_at)
-        user_card_expiration.last_repeated_at = request.json.get('last_repeated_at',
-                                                                 user_card_expiration.last_repeated_at)
+        _module_card.module_id = request.json.get('module_id', _module_card.module_id)
+        _module_card.next_repeat_at = request.json.get('next_repeat_at', _module_card.next_repeat_at)
+        _module_card.last_repeated_at = request.json.get('last_repeated_at',
+                                                         _module_card.last_repeated_at)
         db.session.commit()
-        return jsonify(card=card.serialize())
-    else:
+        return jsonify(card={'id': card.id, 'face': card.face, 'back': card.back,
+                             'next_repeat_at': _module_card.next_repeat_at,
+                             'last_repeated_at': _module_card.last_repeated_at})
+    if request.method == 'DELETE':
         if db.session.query(func.count_owners(card_id)).first()[0] == 1:
             db.session.delete(card)
-        module_card = ModuleCard.query.filter_by(module_id=module_id, card_id=card_id).first()
-        db.session.delete(module_card)
-        user_card_expiration = UserCardExpiration.query.filter_by(user_id=current_user.id,
-                                                                  card_id=card_id).first()
-        db.session.delete(user_card_expiration)
+        else:
+            module_card = ModuleCard.query.filter_by(module_id=module_id, card_id=card_id).first()
+            db.session.delete(module_card)
         db.session.commit()
         return jsonify(card_id=card_id, deleted=True)
+
+
+@app.route('/tags', methods=['GET'])
+def tags():
+    _tags = Tag.query.all()
+    return jsonify(Tag.serialize_list(_tags))
+
+
+@app.route('/search', methods=['GET'])
+def search():
+    tag = request.args.get('tag')
+    if tag is None:
+        return jsonify(error='parameter tag is required'), 400
+    _modules = Module.query.join(ModuleTag).join(Tag). \
+        filter(Tag.name == tag).all()
+    return jsonify(modules=Module.serialize_list(_modules))

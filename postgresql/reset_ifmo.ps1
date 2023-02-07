@@ -1,0 +1,1 @@
+.\reset.ps1 -user s265074 -port 65432 -dbname studs -schema s265074
