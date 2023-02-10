@@ -21,6 +21,7 @@ if ($null -eq $pg_password) {
     Write-Host "    port = $port"
     Write-Host "    dbname = $dbname"
     Write-Host "    schema = $schema"
+    Write-Host "    off_fill = $off_fill"
     Write-Host "tip:"
     Write-Host "    you can configure variables like -<variable_name> value"
     Write-Host "    example:"

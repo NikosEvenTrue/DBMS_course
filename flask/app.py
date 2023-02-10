@@ -1,4 +1,4 @@
-from datetime import timedelta, date
+from datetime import timedelta
 
 from flask import Flask, make_response
 from flask import jsonify
@@ -11,7 +11,7 @@ from flask_jwt_extended import current_user
 from flask_jwt_extended import jwt_required
 from flask_jwt_extended import JWTManager
 from jsonschema.exceptions import ValidationError
-from sqlalchemy import func, inspect, select, column, text
+from sqlalchemy import func, inspect, select, desc
 from sqlalchemy.exc import IntegrityError, InternalError
 from psycopg2.errors import ForeignKeyViolation
 
@@ -26,8 +26,8 @@ app.config['SQLALCHEMY_DATABASE_URI'] = f'postgresql+psycopg2://{cfg.USER}:{cfg.
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['JSON_SORT_KEYS'] = False
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=1)
-# app.config['SQLALCHEMY_ECHO'] = True
-""
+app.config['SQLALCHEMY_ECHO'] = True
+
 jwt = JWTManager(app)
 db = SQLAlchemy(app)
 
@@ -86,8 +86,8 @@ class Tag(db.Model, Serializer):
     __table__ = db.metadata.tables['tags']
 
 
-class UserModulePublic(db.Model, Serializer):
-    __table__ = db.metadata.tables['users_modules_public']
+class UserModuleEvaluation(db.Model, Serializer):
+    __table__ = db.metadata.tables['users_modules_evaluations']
 
 
 @app.errorhandler(400)
@@ -316,25 +316,30 @@ def modules(user_id):
 @jwt_required()
 @id_validator
 def modules_id(user_id, module_id):
+    user = User.query.get(user_id)
+    if user is None:
+        return jsonify(error=f'no such user({user_id})'), 400
     module = Module.query.get(module_id)
-    is_public = ModuleTag.query.filter_by(module_id=module_id).first()
     if not module:
-        return jsonify(error=f'no such module with id = {module_id}')
+        return jsonify(error=f'no such module with id = {module_id}'), 400
+    if user_id != module.user_id:
+        return jsonify(error=f'user({user_id}) has no module({module_id})'), 400
+    is_public = ModuleTag.query.filter_by(module_id=module_id).first()
     if module.user_id != current_user.id and not is_public:
-        return jsonify(error=f'you aren\'t module owner, module id = {module_id}')
+        return jsonify(error=f'you aren\'t module owner, module id = {module_id}'), 400
     if request.method == 'POST':
         if module.user_id != current_user.id:
             evaluation_id = request.json.get('evaluation_id')
             if evaluation_id is None:
                 return jsonify(error='parameter evaluation_id is required'), 400
             comment = request.json.get('comment')
-            user_module_public = UserModulePublic.query.filter_by(user_id=current_user.id,
-                                                                  module_id=module_id).first()
+            user_module_public = UserModuleEvaluation.query.filter_by(user_id=current_user.id,
+                                                                      module_id=module_id).first()
             if user_module_public is None:
-                user_module_public = UserModulePublic(user_id=current_user.id,
-                                                      module_id=modules_id,
-                                                      evaluation_id=evaluation_id,
-                                                      comment=comment)
+                user_module_public = UserModuleEvaluation(user_id=current_user.id,
+                                                          module_id=modules_id,
+                                                          evaluation_id=evaluation_id,
+                                                          comment=comment)
                 db.session.add(user_module_public)
             else:
                 user_module_public.evaluation_id = evaluation_id
@@ -363,6 +368,11 @@ def modules_id(user_id, module_id):
             return jsonify(msg=msg)
     if request.method == 'COPY':
         new_folder_id = request.json.get('folder_id')
+        folder = Folder.query.get(new_folder_id)
+        if folder is None:
+            return jsonify(error=f'no such folder({new_folder_id})'), 400
+        if folder.user_id != current_user.id:
+            return jsonify(error=f'you aren\'t folder({new_folder_id}) owner'), 400
         new_module = Module(name=module.name, user_id=current_user.id, folder_id=new_folder_id)
         db.session.add(new_module)
         db.session.commit()
@@ -374,8 +384,8 @@ def modules_id(user_id, module_id):
         return jsonify(module=new_module.serialize())
     elif request.method == 'GET':
         if request.args.get('public_info') in ['True', 'true', 'T', 't']:
-            public_info = UserModulePublic.query.filter_by(module_id=module_id).all()
-            return jsonify(evaluations=UserModulePublic.serialize_list(public_info))
+            public_info = UserModuleEvaluation.query.filter_by(module_id=module_id).all()
+            return jsonify(evaluations=UserModuleEvaluation.serialize_list(public_info))
         return jsonify(module=module.serialize())
     if module.user_id != current_user.id:
         return jsonify(error=f'you aren\'t module owner, module id = {module_id}')
@@ -408,10 +418,15 @@ schema_cards = {
 @expects_json(schema_cards, ignore_for=['GET'])
 @id_validator
 def cards(user_id, module_id):
+    user = User.query.get(user_id)
+    if user is None:
+        return jsonify(error=f'no such user({user_id})'), 400
     module = Module.query.get(module_id)
-    is_public = ModuleTag.query.filter_by(module_id=module_id).first()
     if not module:
         return jsonify(error=f'no such module with id = {module_id}'), 400
+    if user_id != module.user_id:
+        return jsonify(error=f'user({user_id}) has no module({module_id})'), 400
+    is_public = ModuleTag.query.filter_by(module_id=module_id).first()
     if request.method == 'GET':
         if module.user_id != current_user.id and not is_public:
             return jsonify(error=f'you aren\'t module owner with id = {module_id}')
@@ -439,10 +454,15 @@ def cards(user_id, module_id):
 @jwt_required()
 @id_validator
 def cards_id(user_id, module_id, card_id):
+    user = User.query.get(user_id)
+    if user is None:
+        return jsonify(error=f'no such user({user_id})'), 400
     module = Module.query.get(module_id)
-    is_public = ModuleTag.query.filter_by(module_id=module_id).first()
     if not module:
         return jsonify(error=f'no such module with id = {module_id}')
+    if user_id != module.user_id:
+        return jsonify(error=f'user({user_id}) has no module({module_id})'), 400
+    is_public = ModuleTag.query.filter_by(module_id=module_id).first()
     if module.user_id != current_user.id and not is_public:
         return jsonify(error=f'you aren\'t owner of the module with id = {module_id}')
     card = Card.query.join(ModuleCard).filter_by(module_id=module_id, card_id=card_id).first()
@@ -474,7 +494,6 @@ def cards_id(user_id, module_id, card_id):
     if module.user_id != current_user.id:
         return jsonify(error=f'you aren\'t owner of the module with id = {module_id}')
     if request.method == 'PATCH':
-        # FIXME
         parent_module = Module.query.get(request.json.get('module_id'))
         _module_card = ModuleCard.query.filter_by(module_id=module_id, card_id=card_id).first()
         face = request.json.get('face')
@@ -511,7 +530,14 @@ def cards_id(user_id, module_id, card_id):
 
 @app.route('/tags', methods=['GET'])
 def tags():
-    _tags = Tag.query.all()
+    start = request.args.get('start')
+    if not start:
+        return jsonify(error='parameter start is required'), 400
+    limit = request.args.get('limit', 10)
+    _tags = Tag.query.filter(Tag.id.in_(
+        select(Tag.id).join(ModuleTag).
+        filter(Tag.name.like(f'{start}%')).group_by(Tag.id).order_by(desc(func.count(ModuleTag.module_id))).limit(limit)
+    )).all()
     return jsonify(Tag.serialize_list(_tags))
 
 

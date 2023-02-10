@@ -4,7 +4,7 @@ INSERT INTO user_settings(interface_language) VALUES ('EN-en'), ('RU-ru');
 INSERT INTO folder_settings(color, icon_size, viev)
 VALUES (0, 16, 1), (1, 10, 2);
 INSERT INTO tags(name) VALUES ('food'), ('pets'), ('youtube'), ('prog lang'), ('python');
-INSERT INTO evaluations(name) VALUES ('liked'), ('disliked');
+INSERT INTO evaluations(name) VALUES ('liked'), ('disliked'), ('empty');
 
 SELECT create_user('nik', 'admin');
 SELECT create_user('roma', 'user');

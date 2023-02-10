@@ -16,7 +16,7 @@ DROP TABLE IF EXISTS users CASCADE ;
 DROP TABLE IF EXISTS user_settings CASCADE;
 
 CREATE TABLE user_settings (
-	id serial primary key,
+	id smallserial primary key,
 	interface_language char(5)
 );
 
@@ -28,7 +28,7 @@ CREATE TABLE users (
 CREATE TABLE user_descriptions (
 	profile_description varchar(4096),
 	user_id integer PRIMARY KEY REFERENCES users ON DELETE CASCADE,
-	user_settings_id integer NOT NULL DEFAULT 1 REFERENCES user_settings
+	user_settings_id smallint NOT NULL DEFAULT 1 REFERENCES user_settings
 );
 
 CREATE TABLE user_credentials (
@@ -39,7 +39,7 @@ CREATE TABLE user_credentials (
 );
 
 CREATE TABLE folder_settings (
-	id serial primary key,
+	id smallserial primary key,
 	color integer NOT NULL,
 	icon_size smallint NOT NULL,
 	viev smallint NOT NULL
@@ -48,9 +48,9 @@ CREATE TABLE folder_settings (
 CREATE TABLE folders (
 	id serial primary key,
 	name varchar(32) NOT NULL,
-	parent_folder_id integer REFERENCES folders ON DELETE CASCADE,
+	parent_folder_id integer REFERENCES folders ON DELETE CASCADE DEFAULT NULL,
 	user_id integer NOT NULL REFERENCES users ON DELETE CASCADE,
-	folder_settings_id integer NOT NULL DEFAULT 1 REFERENCES folder_settings
+	folder_settings_id smallint NOT NULL DEFAULT 1 REFERENCES folder_settings
 );
 
 CREATE TABLE modules (
@@ -86,16 +86,16 @@ CREATE TABLE modules_tags (
 );
 
 CREATE TABLE evaluations (
-    id serial PRIMARY KEY,
+    id smallserial PRIMARY KEY,
     name varchar(8) NOT NULL UNIQUE
 );
 
-CREATE TABLE users_modules_public (
+CREATE TABLE users_modules_evaluations (
     id serial PRIMARY KEY,
     user_id integer REFERENCES users ON DELETE SET NULL,
     module_id integer REFERENCES modules ON DELETE CASCADE,
     comment varchar(216),
-    evaluation_id integer REFERENCES evaluations
+    evaluation_id smallint REFERENCES evaluations
 );
 
 CREATE OR REPLACE FUNCTION ready_cards(_module_id integer)
@@ -119,15 +119,6 @@ LANGUAGE PLPGSQL AS $$
             VALUES (_card_id, _module_id, now(), now());
 		RETURN _card_id;
 	END;
-$$;
-
-CREATE OR REPLACE FUNCTION copy_card(_user_id integer, _module_id integer, _card_id integer)
-RETURNS integer
-LANGUAGE  PLPGSQL AS $$
-    BEGIN
-       INSERT INTO modules_cards VALUES (_module_id, _card_id, now(), now());
-       RETURN _card_id;
-    END;
 $$;
 
 CREATE OR REPLACE FUNCTION count_owners(_card_id integer)
@@ -154,7 +145,7 @@ LANGUAGE SQL AS $$
     DELETE FROM cards WHERE count_owners(id) = 0;
 $$;
 
-CREATE OR REPLACE FUNCTION delete_unlinked_cards_and_user_expiration()
+CREATE OR REPLACE FUNCTION delete_unlinked_cards()
 RETURNS trigger
 LANGUAGE PLPGSQL AS $$
     BEGIN
@@ -166,7 +157,7 @@ $$;
 CREATE OR REPLACE TRIGGER on_module_delete
     AFTER DELETE ON modules
     FOR EACH ROW
-    EXECUTE FUNCTION delete_unlinked_cards_and_user_expiration();
+    EXECUTE FUNCTION delete_unlinked_cards();
 
 CREATE OR REPLACE FUNCTION check_cycle_parents()
 RETURNS trigger
