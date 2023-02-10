@@ -58,7 +58,7 @@ with conn.cursor() as cur:
                         cost real,
                         plan real,
                         exec real,
-                        at timestamptz
+                        at timestamptz DEFAULT now()
                     );
                     
                     CREATE OR REPLACE VIEW datav AS
