@@ -156,7 +156,8 @@ with conn.cursor() as cur:
         data.size = index_size()
         for i in range(precision):
             data.cost, data.plan, data.exec = explain()
-            print(data)
+            if is_print:
+                print(data)
             cur.execute(f'''
                 INSERT INTO data(index, size, rows, cost, plan, exec)
                 VALUES ('{data.index}', {data.size}, {data.rows}, {data.cost}, {data.plan}, {data.exec})
@@ -203,6 +204,7 @@ with conn.cursor() as cur:
                      int(float(cfg.c.get('collect_data', 'gen_end'))))
     is_drop_users_models_evaluations = bool(cfg.c.get('collect_data', 'is_drop_users_models_evaluations'))
     is_drop_data = bool(cfg.c.get('collect_data', 'is_drop_data'))
+    is_print = bool(cfg.c.get('collect_data', 'is_print'))
     # end config
 
     if is_drop_users_models_evaluations:

@@ -27,6 +27,8 @@ gen_end = 1000
 is_drop_users_models_evaluations = True
 # previously drop table data
 is_drop_data = True
+# print
+is_print = False
 
 [plot_data]
 # to plot data of no index queries?
@@ -41,7 +43,7 @@ time_end = '2023-02-11 13:30:39+3'''''
 class Config:
     def __init__(self, init_file_path: str):
         if not os.path.isfile(init_file_path):
-            with open('config.ini', 'w') as cfg_file:
+            with open('example_config.ini', 'w') as cfg_file:
                 cfg_file.write(example_cfg)
             raise FileNotFoundError('No such config file, we generated example')
         self.c = configparser.ConfigParser()
