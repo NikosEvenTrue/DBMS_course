@@ -1,0 +1,48 @@
+import os
+import configparser
+
+example_cfg = '''# must have set up PGPASSWORD
+# Windows: $env:PGPASSWORD = "<password>"
+# Linux: export PGPASSWORD="<password>"
+[postgres]
+dbname = postgres
+user = postgres
+# SET search_path TO <schema>
+schema = default
+host = localhost
+port = 5432
+
+[collect_data]
+# if set to False, will collect data only include indexes (btree, hash)
+# if set to True will also collect data with no indexes
+is_no_on = True
+# how many times EXPLAIN ANALYZE will be called
+# then AVG(measurement) will be considered like a value
+precision = 1000
+# populate users_modules_evaluations with rows from 0 to 1000
+# with special step, look realisation of method 'create_gen()'
+gen_start = 0
+gen_end = 1000
+# previously drop table users_modules_evaluations
+is_drop_users_models_evaluations = True
+# previously drop table data
+is_drop_data = True
+
+[plot_data]
+# to plot data of no index queries?
+is_no_on = False
+# plot data between
+start_rows = 0
+end_rows = 100e6
+# plot data between this time interval
+time_start = '2023-02-08 13:20:39+3'
+time_end = '2023-02-11 13:30:39+3'''''
+
+class Config:
+    def __init__(self, init_file_path: str):
+        if not os.path.isfile(init_file_path):
+            with open('config.ini', 'w') as cfg_file:
+                cfg_file.write(example_cfg)
+            raise FileNotFoundError('No such config file, we generated example')
+        self.c = configparser.ConfigParser()
+        self.c.read(init_file_path)

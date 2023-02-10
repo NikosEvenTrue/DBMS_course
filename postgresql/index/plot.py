@@ -4,17 +4,30 @@ if __name__ != "__main__":
 
 import psycopg2
 import matplotlib.pyplot as plt
+import init_config
+import sys
+
+
+if len(sys.argv) < 2:
+    print('add path to config.ini file\n'
+          'example:\n'
+          f'    {sys.argv[0]} my_config.ini\n'
+          f'or {sys.argv[0]} ""\n'
+          f'to see example')
+    exit(1)
+
+cfg = init_config.Config(sys.argv[1])
 
 # db config
-dbname = 'postgres'
-user = 'postgres'
-schema = 'flash_cards_repeat_system'
-host = 'localhost'
-port = '5432'
+dbname = cfg.c.get('postgres', 'dbname')
+user = cfg.c.get('postgres', 'user')
+schema = cfg.c.get('postgres', 'schema')
+host = cfg.c.get('postgres', 'host')
+port = cfg.c.get('postgres', 'port')
 # config
-is_no_on = False
-start_rows = 0
-end_rows = 100e6
+is_no_on = bool(cfg.c.get('plot_data', 'is_no_on'))
+start_rows = int(float(cfg.c.get('plot_data', 'start_rows')))
+end_rows = int(float(cfg.c.get('plot_data', 'end_rows')))
 time_start = '2023-02-08 13:20:39+3'
 time_end = '2023-02-11 13:30:39+3'
 # end config

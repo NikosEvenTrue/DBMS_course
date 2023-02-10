@@ -1,5 +1,4 @@
 BEGIN;
-
 INSERT INTO user_settings(interface_language) VALUES ('EN-en'), ('RU-ru');
 INSERT INTO folder_settings(color, icon_size, viev)
 VALUES (0, 16, 1), (1, 10, 2);

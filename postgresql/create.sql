@@ -14,6 +14,7 @@ DROP TABLE IF EXISTS user_credentials CASCADE;
 DROP TABLE IF EXISTS user_descriptions CASCADE;
 DROP TABLE IF EXISTS users CASCADE ;
 DROP TABLE IF EXISTS user_settings CASCADE;
+DROP TABLE IF EXISTS users_modules_evaluations CASCADE;
 
 CREATE TABLE user_settings (
 	id smallserial primary key,

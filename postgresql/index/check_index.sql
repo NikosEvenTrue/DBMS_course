@@ -1,7 +1,7 @@
 -- tables size
 select table_name, pg_size_pretty(pg_relation_size(quote_ident(table_name)))
 from information_schema.tables
-where table_schema = 'flash_cards_repeat_system'
+where table_schema = 's265074' -- 'flash_cards_repeat_system'
 order by 2;
 
 -- indexes size
@@ -53,9 +53,9 @@ RETURNS real
 LANGUAGE plpgsql AS $$
     DECLARE
         -- FIXME 1.5? how to find outliers
-        low double precision = (SELECT Q2 - (Q3 - Q1) * 1.5 as low FROM
+        low double precision = (SELECT Q1 - (Q3 - Q1) * 1.5 as low FROM
             (SELECT (Q(nums)).*) as _1);
-        high double precision = (SELECT Q2 + (Q3 - Q1) * 1.5 as high FROM
+        high double precision = (SELECT Q3 + (Q3 - Q1) * 1.5 as high FROM
             (SELECT (Q(nums)).*) as _1);
     BEGIN
         RETURN (SELECT AVG(filtred) FROM unnest(ARRAY(SELECT (nums)[n] FROM
@@ -72,6 +72,7 @@ CREATE AGGREGATE AVGNOOUT(real) (
 
 SELECT AVGNOOUT(data.exec) FROM data WHERE rows BETWEEN 45000000 and 51000000 and index = 'hash';
 SELECT AVG(data.exec) FROM data WHERE rows BETWEEN 45000000 and 51000000 and index = 'hash';
+SELECT * FROM data WHERE rows BETWEEN 45000000 and 51000000 and index = 'hash';
 -- end test
 
 -- search?tag=<tag_name>

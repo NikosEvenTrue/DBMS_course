@@ -1,11 +1,9 @@
-if __name__ != "__main__":
-    print("It is not module")
-    exit(-1)
-
 from dataclasses import dataclass
 from typing import Callable
 import psycopg2
 import re
+import sys
+import init_config
 
 
 @dataclass
@@ -20,12 +18,27 @@ class Data:
     def __init__(self):
         pass
 
+
+if len(sys.argv) < 2:
+    print('add path to config.ini file\n'
+          'example:\n'
+          f'    {sys.argv[0]} my_config.ini\n'
+          f'or {sys.argv[0]} ""\n'
+          f'to see example')
+    exit(1)
+
+try:
+    cfg = init_config.Config(sys.argv[1])
+except FileNotFoundError as ex:
+    print(ex)
+    exit(1)
+
 # db config
-dbname = 'postgres'
-user = 'postgres'
-schema = 'flash_cards_repeat_system'
-host = 'localhost'
-port = '5432'
+dbname = cfg.c.get('postgres', 'dbname')
+user = cfg.c.get('postgres', 'user')
+schema = cfg.c.get('postgres', 'schema')
+host = cfg.c.get('postgres', 'host')
+port = cfg.c.get('postgres', 'port')
 
 conn = psycopg2.connect(f"dbname={dbname} user={user} host={host} port={port} options=--search-path={schema}")
     # conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
@@ -122,7 +135,7 @@ with conn.cursor() as cur:
         cur.execute('vacuum analyse users_modules_evaluations;')
         cur.execute('''
                         EXPLAIN ANALYSE
-                        WITH vars (r) as (values(randint(N() - 1) + 1))
+                        WITH vars (r) as (values(randint(1, N())))
                         SELECT ume.id, ume.user_id, ume.module_id, ume.comment, ume.evaluation_id
                         FROM users_modules_evaluations ume, vars
                         WHERE ume.module_id = r;
@@ -179,16 +192,17 @@ with conn.cursor() as cur:
                 start_i = i
             if sum <= end:
                 end_i = i
-        for i in range(start_i + 1, end_i + 1):
+        for i in range(start_i, end_i + 1):
             yield lst[i]
 
 
     # config
-    is_no_on = False
-    precision = 100
-    gen = create_gen(10e6, 100e6)
-    is_drop_users_models_evaluations = False
-    is_drop_data= False
+    is_no_on = bool(cfg.c.get('collect_data', 'is_no_on'))
+    precision = int(float(cfg.c.get('collect_data', 'precision')))
+    gen = create_gen(int(float(cfg.c.get('collect_data', 'gen_start'))),
+                     int(float(cfg.c.get('collect_data', 'gen_end'))))
+    is_drop_users_models_evaluations = bool(cfg.c.get('collect_data', 'is_drop_users_models_evaluations'))
+    is_drop_data = bool(cfg.c.get('collect_data', 'is_drop_data'))
     # end config
 
     if is_drop_users_models_evaluations:
