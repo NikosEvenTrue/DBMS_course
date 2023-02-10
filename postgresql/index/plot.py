@@ -27,7 +27,7 @@ schema = cfg.c.get('postgres', 'schema')
 host = cfg.c.get('postgres', 'host')
 port = cfg.c.get('postgres', 'port')
 # config
-is_no_on = bool(cfg.c.get('plot_data', 'is_no_on'))
+is_no_on = cfg.c.get('plot_data', 'is_no_on') == 'True'
 start_rows = int(float(cfg.c.get('plot_data', 'start_rows')))
 end_rows = int(float(cfg.c.get('plot_data', 'end_rows')))
 time_start = '2023-02-08 13:20:39+3'

@@ -200,13 +200,13 @@ with conn.cursor() as cur:
 
 
     # config
-    is_no_on = bool(cfg.c.get('collect_data', 'is_no_on'))
+    is_no_on = cfg.c.get('collect_data', 'is_no_on') == 'True'
     precision = int(float(cfg.c.get('collect_data', 'precision')))
     gen = create_gen(int(float(cfg.c.get('collect_data', 'gen_start'))),
                      int(float(cfg.c.get('collect_data', 'gen_end'))))
-    is_drop_users_models_evaluations = bool(cfg.c.get('collect_data', 'is_drop_users_models_evaluations'))
-    is_drop_data = bool(cfg.c.get('collect_data', 'is_drop_data'))
-    is_print = bool(cfg.c.get('collect_data', 'is_print'))
+    is_drop_users_models_evaluations = cfg.c.get('collect_data', 'is_drop_users_models_evaluations') == 'True'
+    is_drop_data = cfg.c.get('collect_data', 'is_drop_data') == 'True'
+    is_print = cfg.c.get('collect_data', 'is_print') == 'True'
     # end config
 
     if is_drop_users_models_evaluations:
