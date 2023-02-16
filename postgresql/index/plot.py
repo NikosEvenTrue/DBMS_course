@@ -52,7 +52,7 @@ with psycopg2.connect(f"dbname={dbname} user={user} host={host} port={port} opti
             plt.clf()
 
         cur.execute(f'''
-            SELECT index, rows, avg(size)::int as size, avg(cost) as cost, avg(plan) as plan, avg(exec) as exec 
+            SELECT index, rows, avg(size)::bigint as size, AVGNOOUT(cost) as cost, AVGNOOUT(plan) as plan, AVGNOOUT(exec) as exec 
             FROM data WHERE rows BETWEEN {start_rows} AND {end_rows} AND
                 at BETWEEN '{time_start}'::timestamptz AND '{time_end}'::timestamptz
             GROUP BY index, rows order by rows;

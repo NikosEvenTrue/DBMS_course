@@ -1,20 +1,19 @@
 BEGIN;
-SHOW search_path;
 
-DROP TABLE IF EXISTS users_modules_public CASCADE;
+DROP TABLE IF EXISTS users_modules_public;
 DROP TABLE IF EXISTS evaluations CASCADE;
-DROP TABLE IF EXISTS modules_tags CASCADE;
-DROP TABLE IF EXISTS tags CASCADE;
+DROP TABLE IF EXISTS modules_tags;
+DROP TABLE IF EXISTS tags;
 DROP TABLE IF EXISTS modules_cards CASCADE;
-DROP TABLE IF EXISTS cards CASCADE;
+DROP TABLE IF EXISTS cards;
 DROP TABLE IF EXISTS modules CASCADE;
-DROP TABLE IF EXISTS folders CASCADE;
-DROP TABLE IF EXISTS folder_settings CASCADE;
-DROP TABLE IF EXISTS user_credentials CASCADE;
-DROP TABLE IF EXISTS user_descriptions CASCADE;
-DROP TABLE IF EXISTS users CASCADE ;
-DROP TABLE IF EXISTS user_settings CASCADE;
-DROP TABLE IF EXISTS users_modules_evaluations CASCADE;
+DROP TABLE IF EXISTS folders;
+DROP TABLE IF EXISTS folder_settings;
+DROP TABLE IF EXISTS user_credentials;
+DROP TABLE IF EXISTS user_descriptions;
+DROP TABLE IF EXISTS users CASCADE;
+DROP TABLE IF EXISTS user_settings;
+DROP TABLE IF EXISTS users_modules_evaluations;
 
 CREATE TABLE user_settings (
 	id smallserial primary key,
@@ -33,17 +32,16 @@ CREATE TABLE user_descriptions (
 );
 
 CREATE TABLE user_credentials (
-	id serial primary key,
 	login varchar(32) UNIQUE NOT NULL,
-	password varchar(128) NOT NULL,
-	user_id integer UNIQUE REFERENCES users ON DELETE CASCADE
+	password bytea NOT NULL,
+	user_id integer PRIMARY KEY UNIQUE REFERENCES users ON DELETE CASCADE
 );
 
 CREATE TABLE folder_settings (
 	id smallserial primary key,
 	color integer NOT NULL,
 	icon_size smallint NOT NULL,
-	viev smallint NOT NULL
+	view smallint NOT NULL
 );
 
 CREATE TABLE folders (
@@ -53,6 +51,7 @@ CREATE TABLE folders (
 	user_id integer NOT NULL REFERENCES users ON DELETE CASCADE,
 	folder_settings_id smallint NOT NULL DEFAULT 1 REFERENCES folder_settings
 );
+
 
 CREATE TABLE modules (
 	id serial primary key,
@@ -72,7 +71,7 @@ CREATE TABLE modules_cards (
 	card_id integer REFERENCES cards ON DELETE CASCADE,
 	next_repeat_at timestamptz NOT NULL DEFAULT now(),
 	last_repeated_at timestamptz NOT NULL DEFAULT now(),
-	PRIMARY KEY (card_id, module_id)
+	PRIMARY KEY (module_id, card_id)
 );
 
 CREATE TABLE tags (
@@ -81,7 +80,7 @@ CREATE TABLE tags (
 );
 
 CREATE TABLE modules_tags (
-    module_id integer REFERENCES modules,
+    module_id integer REFERENCES modules ON DELETE CASCADE,
     tag_id integer REFERENCES tags,
     PRIMARY KEY (module_id, tag_id)
 );
@@ -122,13 +121,7 @@ LANGUAGE PLPGSQL AS $$
 	END;
 $$;
 
-CREATE OR REPLACE FUNCTION count_owners(_card_id integer)
-RETURNS integer
-LANGUAGE SQL AS $$
-        SELECT COUNT(DISTINCT module_id) FROM modules_cards WHERE card_id = _card_id;
-$$;
-
-CREATE OR REPLACE FUNCTION create_user(_login varchar, _password varchar)
+CREATE OR REPLACE FUNCTION create_user(_login varchar, _password bytea)
 RETURNS integer
 LANGUAGE PLPGSQL AS $$
     DECLARE
@@ -141,16 +134,28 @@ LANGUAGE PLPGSQL AS $$
     END;
 $$;
 
-CREATE OR REPLACE PROCEDURE delete_unknown_owner_cards()
+CREATE OR REPLACE FUNCTION count_owners(_card_id integer)
+RETURNS integer
 LANGUAGE SQL AS $$
-    DELETE FROM cards WHERE count_owners(id) = 0;
+        SELECT COUNT(DISTINCT module_id) FROM modules_cards WHERE card_id = _card_id;
+$$;
+
+CREATE OR REPLACE PROCEDURE delete_unknown_owner_cards(_module_id integer)
+LANGUAGE SQL AS $$
+    DELETE FROM cards
+    WHERE id IN (
+        SELECT cards.id FROM cards
+        JOIN modules_cards mc on cards.id = mc.card_id
+        WHERE module_id = _module_id
+        )
+    AND count_owners(id) = 0;
 $$;
 
 CREATE OR REPLACE FUNCTION delete_unlinked_cards()
 RETURNS trigger
 LANGUAGE PLPGSQL AS $$
     BEGIN
-        CALL delete_unknown_owner_cards();
+        CALL delete_unknown_owner_cards(OLD.id);
         RETURN NEW;
     END;
 $$;
@@ -201,4 +206,13 @@ JOIN modules ON users.id = modules.user_id
 JOIN modules_cards mc ON modules.id = mc.module_id
 JOIN cards ON mc.card_id = cards.id;
 
+CREATE INDEX folders_user_id_btree ON folders(user_id);
+CREATE INDEX folders_parent_folder_id_btree ON folders USING hash(parent_folder_id);
+CREATE INDEX modules_user_id_btree ON modules(user_id);
+CREATE INDEX modules_cards_card_id_hash ON modules_cards(card_id);
+CREATE INDEX users_modules_evaluations_module_id_user_id_btree
+    ON users_modules_evaluations(module_id, user_id);
+CREATE INDEX users_modules_evaluations_user_id_btree ON users_modules_evaluations(user_id);
+CREATE INDEX modules_tags_tag_id_btree ON modules_tags(tag_id);
+CREATE INDEX tags_name_btree ON tags(name varchar_pattern_ops);
 COMMIT;

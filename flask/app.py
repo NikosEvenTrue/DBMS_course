@@ -1,3 +1,5 @@
+import binascii
+import hashlib
 from datetime import timedelta
 
 from flask import Flask, make_response
@@ -13,7 +15,8 @@ from flask_jwt_extended import JWTManager
 from jsonschema.exceptions import ValidationError
 from sqlalchemy import func, inspect, select, desc
 from sqlalchemy.exc import IntegrityError, InternalError
-from psycopg2.errors import ForeignKeyViolation
+
+from hashlib import sha256
 
 from config import cfg
 
@@ -26,7 +29,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = f'postgresql+psycopg2://{cfg.USER}:{cfg.
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['JSON_SORT_KEYS'] = False
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=1)
-app.config['SQLALCHEMY_ECHO'] = True
+# app.config['SQLALCHEMY_ECHO'] = cfg.ECHO_QUERIES
 
 jwt = JWTManager(app)
 db = SQLAlchemy(app)
@@ -50,8 +53,12 @@ class Serializer(object):
 class UserCredential(db.Model):
     __table__ = db.metadata.tables['user_credentials']
 
+    @staticmethod
+    def salt(password):
+        return sha256((password + cfg.SALT).encode('utf-8')).digest()
+
     def check_password(self, password):
-        return self.password == password
+        return self.password == self.salt(password)
 
 
 class User(db.Model):
@@ -111,7 +118,7 @@ def user_identity_lookup(user_credentials):
 @jwt.user_lookup_loader
 def user_lookup_callback(_jwt_header, jwt_data):
     user_credentials = jwt_data['sub']
-    return UserCredential.query.filter_by(id=user_credentials).one_or_none()
+    return UserCredential.query.filter_by(user_id=user_credentials).one_or_none()
 
 
 @jwt.token_in_blocklist_loader
@@ -125,7 +132,6 @@ def expire_jwt(jwt):
 
 @app.post('/signin')
 def signin():
-    # FIXME add password salt
     user_credentials = UserCredential.query.filter_by(login=request.json.get('login')).first()
     if not user_credentials or not user_credentials.check_password(request.json.get('password')):
         return jsonify(error='Wrong username or password'), 401
@@ -136,10 +142,11 @@ def signin():
 # FIXME users_nex_val skip integer when exception
 @app.post('/signup')
 def signup():
-    # FIXME add password salt
     try:
-        user_id = db.session.query(func.create_user(request.json.get('login'),
-                                                    request.json.get('password'))).one()[0]
+        user_id = db.session.query(func.create_user(
+            request.json.get('login'),
+            UserCredential.salt(request.json.get('password'))
+        )).one()[0]
         db.session.commit()
     except IntegrityError as ex:
         return jsonify(error='User with such login already exists'), 400
@@ -150,7 +157,7 @@ def signup():
 @jwt_required()
 def logout():
     expire_jwt(get_jwt())
-    return jsonify(id=current_user.id)
+    return jsonify(user_id=current_user.user_id)
 
 
 def id_validator(func):
@@ -169,7 +176,7 @@ def id_validator(func):
 
 def user_validator(func):
     def decor(*args):
-        if current_user.id != args[0]:
+        if current_user.user_id != args[0]:
             return jsonify(error=f'you have no permission to perform {request.method} with user({args[0]})'), 403
         user = User.query.get(args[0])
         if not user:
@@ -193,7 +200,7 @@ def users_id(user_id):
         return jsonify(user={'name': user.name, 'description': user_description.profile_description})
     if not current_user:
         return jsonify(error=f'Unauthorized'), 401
-    if current_user.id != user_id:
+    if current_user.user_id != user_id:
         return jsonify(error=f'you have no permission to perform {request.method} with user({user_id})'), 403
     if request.method == 'PATCH':
         user.name = request.json.get('name', user.name)
@@ -201,11 +208,11 @@ def users_id(user_id):
         db.session.commit()
         return jsonify(user={'name': user.name, 'description': user_description.profile_description})
     else:
-        user_id = current_user.id
-        expire_jwt(get_jwt())
+        user_id = current_user.user_id
         db.session.delete(user)
         db.session.commit()
-        return jsonify(id=user_id, deleted=True)
+        expire_jwt(get_jwt())
+        return jsonify(user_id=user_id, deleted=True)
 
 
 @app.route('/users/<u_id>/folders', methods=['GET', "POST"])
@@ -214,7 +221,7 @@ def users_id(user_id):
 @user_validator
 def folders(user_id):
     if request.method == 'GET':
-        _folders = Folder.query.filter_by(user_id=current_user.id).all()
+        _folders = Folder.query.filter_by(user_id=current_user.user_id).all()
         return jsonify(folders=Folder.serialize_list(_folders))
     else:
         folder_name = request.json.get('name')
@@ -225,14 +232,14 @@ def folders(user_id):
             parent_folder = Folder.query.get(parent_folder_id)
             if not parent_folder:
                 return jsonify(error=f'no such parent folder, parent_folder_id = {parent_folder_id}'), 400
-            if parent_folder.user_id != current_user.id:
+            if parent_folder.user_id != current_user.user_id:
                 return jsonify(error=f'you aren\'t parent folder owner, parent_folder_id = {parent_folder_id}'), 400
             folder = Folder(name=folder_name,
                             parent_folder_id=parent_folder_id,
-                            user_id=current_user.id)
+                            user_id=current_user.user_id)
         else:
             folder = Folder(name=folder_name,
-                            user_id=current_user.id)
+                            user_id=current_user.user_id)
         db.session.add(folder)
         db.session.commit()
         return jsonify(folder=folder.serialize())
@@ -245,15 +252,17 @@ def folders(user_id):
 def folders_id(user_id, folder_id):
     folder = Folder.query.get(folder_id)
     if folder:
-        if folder.user_id == current_user.id:
+        if folder.user_id == current_user.user_id:
             if request.method == 'GET':
                 return jsonify(folder=folder.serialize())
             elif request.method == 'PATCH':
                 try:
-                    parent_folder = Folder.query.get(request.json.get('parent_folder_id'))
-                    if parent_folder and parent_folder.user_id != current_user.id:
-                        return jsonify(
-                            error=f'you aren\'t owner of the parent folder with id = {parent_folder.id}'), 400
+                    parent_folder_id = request.json.get('parent_folder_id')
+                    if parent_folder_id:
+                        parent_folder = Folder.query.get(parent_folder_id)
+                        if parent_folder and parent_folder.user_id != current_user.user_id:
+                            return jsonify(
+                                error=f'you aren\'t owner of the parent folder with id = {parent_folder.id}'), 400
                     folder.name = request.json.get('name', folder.name)
                     folder.parent_folder_id = request.json.get('parent_folder_id', folder.parent_folder_id)
                     folder.folder_settings_id = request.json.get('folder_settings_id', folder.folder_settings_id)
@@ -279,7 +288,7 @@ schema_module = {
         'name': {'type': 'string', 'maxLength': 32},
         'folder_id': {'type': ['integer', 'null']}
     },
-    'required': ['name', 'folder_id']
+    'required': ['name']
 }
 
 
@@ -293,7 +302,7 @@ def modules(user_id):
         return jsonify(error=f'no user with id = {user_id}'), 400
     if request.method == 'GET':
         _modules = Module.query.filter_by(user_id=user_id)
-        if current_user.id == user_id:
+        if current_user.user_id == user_id:
             return jsonify(modules=Module.serialize_list(_modules))
         else:
             public_modules_ids = ModuleTag.query.distinct(ModuleTag.module_id). \
@@ -301,10 +310,11 @@ def modules(user_id):
             public_modules = [m for m in _modules if m.id in [m.module_id for m in public_modules_ids]]
             return jsonify(modules=Module.serialize_list(public_modules))
     else:
-        if current_user.id != user_id:
+        if current_user.user_id != user_id:
             return jsonify(error=f'you have no permission to perform {request.method} with user({user_id})'), 403
         try:
-            module = Module(name=request.json['name'], user_id=current_user.id, folder_id=request.json['folder_id'])
+            module = Module(name=request.json['name'], user_id=current_user.user_id,
+                            folder_id=request.json.get('folder_id'))
             db.session.add(module)
             db.session.commit()
         except IntegrityError as ex:
@@ -325,55 +335,54 @@ def modules_id(user_id, module_id):
     if user_id != module.user_id:
         return jsonify(error=f'user({user_id}) has no module({module_id})'), 400
     is_public = ModuleTag.query.filter_by(module_id=module_id).first()
-    if module.user_id != current_user.id and not is_public:
+    if module.user_id != current_user.user_id and not is_public:
         return jsonify(error=f'you aren\'t module owner, module id = {module_id}'), 400
     if request.method == 'POST':
-        if module.user_id != current_user.id:
+        if module.user_id != current_user.user_id:
+            # evaluate the module
             evaluation_id = request.json.get('evaluation_id')
             if evaluation_id is None:
-                return jsonify(error='parameter evaluation_id is required'), 400
+                evaluation_id = 3
             comment = request.json.get('comment')
-            user_module_public = UserModuleEvaluation.query.filter_by(user_id=current_user.id,
-                                                                      module_id=module_id).first()
-            if user_module_public is None:
-                user_module_public = UserModuleEvaluation(user_id=current_user.id,
-                                                          module_id=modules_id,
-                                                          evaluation_id=evaluation_id,
-                                                          comment=comment)
-                db.session.add(user_module_public)
+            user_module_evaluation = UserModuleEvaluation.query.filter_by(user_id=current_user.user_id,
+                                                                          module_id=module_id).first()
+            if user_module_evaluation is None:
+                user_module_evaluation = UserModuleEvaluation(user_id=current_user.user_id,
+                                                              module_id=module_id,
+                                                              evaluation_id=evaluation_id,
+                                                              comment=comment)
+                db.session.add(user_module_evaluation)
             else:
-                user_module_public.evaluation_id = evaluation_id
-                user_module_public.comment = user_module_public.comment if comment is None else comment
+                user_module_evaluation.evaluation_id = evaluation_id
+                user_module_evaluation.comment = user_module_evaluation.comment if comment is None else comment
             db.session.commit()
-            return jsonify(public=user_module_public.serialize())
+            return jsonify(evaluation=user_module_evaluation.serialize())
         else:
-            tag_ids = request.json.get('public_tags')
-            if not tag_ids:
+            # public the module
+            tags_str = request.json.get('tags')
+            if not tags_str:
                 return jsonify(error='tags can\'t be empty'), 400
+            existing_tags = Tag.query.filter(Tag.name.in_(tags_str)).all()
+            new_tags = [Tag(name=t_name) for t_name in
+                        (t_name for t_name in tags_str if t_name not in [t.name for t in existing_tags])]
+            db.session.add_all(new_tags)
             already_tagged = ModuleTag.query.filter_by(module_id=module_id).all()
-            if already_tagged:
-                already_tags = [mt.tag_id for mt in already_tagged]
-                tag_ids = list(filter(lambda tag_id: tag_id not in already_tags, tag_ids))
-                msg = f'module({module_id}) already has tags({already_tags}), added new tags({tag_ids})'
-            else:
-                msg = f"module({module_id}) is published with tags({tag_ids})"
-            modules_tags = [ModuleTag(module_id=module_id, tag_id=tag_id) for tag_id in tag_ids]
+            new_tagged_ids = [t.id for t in existing_tags
+                              if t.id not in [tagged.tag_id for tagged in already_tagged]]
+            new_tagged_ids.extend((t.id for t in new_tags))
+            modules_tags = [ModuleTag(module_id=module_id, tag_id=tag_id) for tag_id in new_tagged_ids]
             db.session.add_all(modules_tags)
-            try:
-                db.session.commit()
-            except IntegrityError as ex:
-                if type(ex.orig) == ForeignKeyViolation:
-                    return jsonify(error='no such tag id')
-                raise ex
-            return jsonify(msg=msg)
+            db.session.commit()
+            return jsonify(msg=f'tags were added')
     if request.method == 'COPY':
         new_folder_id = request.json.get('folder_id')
-        folder = Folder.query.get(new_folder_id)
-        if folder is None:
-            return jsonify(error=f'no such folder({new_folder_id})'), 400
-        if folder.user_id != current_user.id:
-            return jsonify(error=f'you aren\'t folder({new_folder_id}) owner'), 400
-        new_module = Module(name=module.name, user_id=current_user.id, folder_id=new_folder_id)
+        if new_folder_id:
+            folder = Folder.query.get(new_folder_id)
+            if folder is None:
+                return jsonify(error=f'no such folder({new_folder_id})'), 400
+            if folder.user_id != current_user.user_id:
+                return jsonify(error=f'you aren\'t folder({new_folder_id}) owner'), 400
+        new_module = Module(name=module.name, user_id=current_user.user_id, folder_id=new_folder_id)
         db.session.add(new_module)
         db.session.commit()
         modules_cards = ModuleCard.query.filter_by(module_id=module_id).all()
@@ -385,14 +394,23 @@ def modules_id(user_id, module_id):
     elif request.method == 'GET':
         if request.args.get('public_info') in ['True', 'true', 'T', 't']:
             public_info = UserModuleEvaluation.query.filter_by(module_id=module_id).all()
-            return jsonify(evaluations=UserModuleEvaluation.serialize_list(public_info))
+            tags = Tag.query.join(ModuleTag).filter(ModuleTag.module_id == module_id).all()
+            return jsonify(tags=Tag.serialize_list(tags),
+                           evaluations=UserModuleEvaluation.serialize_list(public_info))
         return jsonify(module=module.serialize())
-    if module.user_id != current_user.id:
+    if module.user_id != current_user.user_id:
         return jsonify(error=f'you aren\'t module owner, module id = {module_id}')
     if request.method == 'PATCH':
         try:
             module.name = request.json.get('name', module.name)
-            module.folder_id = request.json.get('folder_id', module.folder_id)
+            parent_folder_id = request.json.get('folder_id')
+            if parent_folder_id:
+                parent_folder = Folder.query.get(parent_folder_id)
+                if not parent_folder:
+                    return jsonify(error=f'no such folder({parent_folder_id})')
+                if parent_folder.user_id != current_user.user_id:
+                    return jsonify(error=f'you aren\'t folder({parent_folder_id}) owner')
+                module.folder_id = parent_folder_id
             db.session.commit()
         except IntegrityError as ex:
             return jsonify(error=str(ex)), 400
@@ -428,9 +446,9 @@ def cards(user_id, module_id):
         return jsonify(error=f'user({user_id}) has no module({module_id})'), 400
     is_public = ModuleTag.query.filter_by(module_id=module_id).first()
     if request.method == 'GET':
-        if module.user_id != current_user.id and not is_public:
+        if module.user_id != current_user.user_id and not is_public:
             return jsonify(error=f'you aren\'t module owner with id = {module_id}')
-        if module.user_id != current_user.id:
+        if module.user_id != current_user.user_id:
             _cards = Card.query.join(ModuleCard).filter(ModuleCard.module_id == module_id).all()
             return jsonify(cards=Card.serialize_list(_cards))
         _cards = db.session.query(Card.id, Card.face, Card.back,
@@ -440,10 +458,10 @@ def cards(user_id, module_id):
                                'next_repeat_at': c.next_repeat_at,
                                'last_repeated_at': c.last_repeated_at}
                               for c in _cards])
-    if module.user_id != current_user.id:
+    if module.user_id != current_user.user_id:
         return jsonify(error=f'you aren\'t module owner with id = {module_id}')
     if request.method == 'POST':
-        card_id = db.session.query(func.create_card(current_user.id, module_id,
+        card_id = db.session.query(func.create_card(current_user.user_id, module_id,
                                                     request.json.get('face'), request.json.get('back'))).first()[0]
         db.session.commit()
         card = Card.query.get(card_id)
@@ -463,13 +481,13 @@ def cards_id(user_id, module_id, card_id):
     if user_id != module.user_id:
         return jsonify(error=f'user({user_id}) has no module({module_id})'), 400
     is_public = ModuleTag.query.filter_by(module_id=module_id).first()
-    if module.user_id != current_user.id and not is_public:
+    if module.user_id != current_user.user_id and not is_public:
         return jsonify(error=f'you aren\'t owner of the module with id = {module_id}')
     card = Card.query.join(ModuleCard).filter_by(module_id=module_id, card_id=card_id).first()
     if not card:
         return jsonify(error=f'no such card with id = {card_id} in module with id = {module_id}')
     if request.method == 'GET':
-        if module.user_id != current_user.id:
+        if module.user_id != current_user.user_id:
             return jsonify(card=Card.query.filter_by(id=card_id).first().serialize())
         expiration = ModuleCard.query.filter_by(module_id=module_id, card_id=card_id).first()
         return jsonify(card={'id': card.id, 'face': card.face, 'back': card.back,
@@ -480,7 +498,9 @@ def cards_id(user_id, module_id, card_id):
         if new_module_id is None:
             return jsonify(error='parament module_id is required'), 400
         new_module = Module.query.filter_by(id=new_module_id).first()
-        if new_module.user_id != current_user.id:
+        if not new_module:
+            return jsonify(error=f'module({new_module_id}) doesn\'t exist'), 400
+        if new_module.user_id != current_user.user_id:
             return jsonify(error=f'you aren\'t owner of the module with id = {new_module_id}')
         module_card = ModuleCard(module_id=new_module_id, card_id=card_id)
         db.session.add(module_card)
@@ -491,15 +511,16 @@ def cards_id(user_id, module_id, card_id):
                                  'last_repeated_at': module_card.last_repeated_at})
         except IntegrityError as ex:
             return jsonify(error=f'the card({card_id}) already in the module({module_id})')
-    if module.user_id != current_user.id:
+    if module.user_id != current_user.user_id:
         return jsonify(error=f'you aren\'t owner of the module with id = {module_id}')
     if request.method == 'PATCH':
-        parent_module = Module.query.get(request.json.get('module_id'))
+        if request.json.get('module_id'):
+            parent_module = Module.query.get(request.json.get('module_id'))
         _module_card = ModuleCard.query.filter_by(module_id=module_id, card_id=card_id).first()
         face = request.json.get('face')
         back = request.json.get('back')
         if (face or back) and (face != card.face or back != card.back):
-            if parent_module and parent_module.user_id != current_user.id:
+            if parent_module and parent_module.user_id != current_user.user_id:
                 return jsonify(error=f'you aren\'t owner of the module with id = {request.json.get("module_id")}')
             count_card_owners = db.session.query(func.count_owners(card_id)).first()[0]
             if count_card_owners != 1:
@@ -535,10 +556,11 @@ def tags():
         return jsonify(error='parameter start is required'), 400
     limit = request.args.get('limit', 10)
     _tags = Tag.query.filter(Tag.id.in_(
-        select(Tag.id).join(ModuleTag).
-        filter(Tag.name.like(f'{start}%')).group_by(Tag.id).order_by(desc(func.count(ModuleTag.module_id))).limit(limit)
+        select(ModuleTag.tag_id).filter(ModuleTag.tag_id.in_(
+            select(Tag.id).filter(Tag.name.like(f'{start}%')).subquery()
+        )).group_by(ModuleTag.tag_id).order_by(desc(func.count(ModuleTag.tag_id))).limit(limit).subquery()
     )).all()
-    return jsonify(Tag.serialize_list(_tags))
+    return jsonify(tags=Tag.serialize_list(_tags))
 
 
 @app.route('/search', methods=['GET'])

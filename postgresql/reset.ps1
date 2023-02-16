@@ -12,7 +12,7 @@ if ($null -eq $pg_password) {
     Write-Host 'please, set $env:PGPASSWORD="your postgres password"'
 } else {
     psql -f $PSScriptRoot\create.sql -U $user "dbname=$dbname host=$pg_host port=$port options=--search_path=$schema"
-    psql -f $PSScriptRoot\fill_test.sql  -U $user "dbname=$dbname host=$pg_host port=$port options=--search_path=$schema"
+    psql -f $PSScriptRoot\fill_test.sql -v salt="'$env:SALT'" -U $user "dbname=$dbname host=$pg_host port=$port options=--search_path=$schema"
 
     Write-Host
     Write-Host "config:"
