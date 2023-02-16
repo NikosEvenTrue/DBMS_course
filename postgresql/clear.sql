@@ -31,3 +31,5 @@ DROP FUNCTION IF EXISTS ru();
 DROP FUNCTION IF EXISTS en();
 DROP FUNCTION IF EXISTS ascii_symbols();
 DROP FUNCTION IF EXISTS random_utf8_string(length integer, chars text[]);
+
+COMMIT;
