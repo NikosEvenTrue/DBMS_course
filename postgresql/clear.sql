@@ -14,7 +14,6 @@ DROP TABLE IF EXISTS user_descriptions;
 DROP TABLE IF EXISTS users CASCADE;
 DROP TABLE IF EXISTS user_settings;
 DROP TABLE IF EXISTS users_modules_evaluations;
-DROP VIEW users_cards;
 
 DROP FUNCTION IF EXISTS ready_cards(_module_id integer);
 DROP FUNCTION IF EXISTS create_card(_user_id integer, _module_id integer, face varchar, back varchar);
