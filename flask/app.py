@@ -29,7 +29,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = f'postgresql+psycopg2://{cfg.USER}:{cfg.
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['JSON_SORT_KEYS'] = False
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=1)
-# app.config['SQLALCHEMY_ECHO'] = cfg.ECHO_QUERIES
+app.config['SQLALCHEMY_ECHO'] = cfg.ECHO_QUERIES
 
 jwt = JWTManager(app)
 db = SQLAlchemy(app)
@@ -514,6 +514,7 @@ def cards_id(user_id, module_id, card_id):
     if module.user_id != current_user.user_id:
         return jsonify(error=f'you aren\'t owner of the module with id = {module_id}')
     if request.method == 'PATCH':
+        parent_module = None
         if request.json.get('module_id'):
             parent_module = Module.query.get(request.json.get('module_id'))
         _module_card = ModuleCard.query.filter_by(module_id=module_id, card_id=card_id).first()
