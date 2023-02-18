@@ -24,15 +24,10 @@
 							}
 						},
 						"url": {
-							"raw": "http://127.0.0.1:5000/signin",
-							"protocol": "http",
+							"raw": "{{URN}}/signin",
 							"host": [
-								"127",
-								"0",
-								"0",
-								"1"
+								"{{URN}}"
 							],
-							"port": "5000",
 							"path": [
 								"signin"
 							]
@@ -48,7 +43,7 @@
 							"bearer": [
 								{
 									"key": "token",
-									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTY3NDExMzMxNiwianRpIjoiMjg2ZTY0MDctZmQ0Zi00NTRkLTgxMWQtOTQwMmQxZTAyN2Y4IiwidHlwZSI6ImFjY2VzcyIsInN1YiI6MSwibmJmIjoxNjc0MTEzMzE2LCJleHAiOjE2NzQxMTQyMTZ9.Ay3uv2tVccQMIe9ss61eOguXvKLRsEJeeUYlQfmn1V8",
+									"value": "{{Token}}",
 									"type": "string"
 								}
 							]
@@ -56,15 +51,10 @@
 						"method": "POST",
 						"header": [],
 						"url": {
-							"raw": "http://127.0.0.1:5000/logout",
-							"protocol": "http",
+							"raw": "{{URN}}/logout",
 							"host": [
-								"127",
-								"0",
-								"0",
-								"1"
+								"{{URN}}"
 							],
-							"port": "5000",
 							"path": [
 								"logout"
 							]
@@ -79,7 +69,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"login\"\r\n}",
+							"raw": "{\r\n    \"login\": \"test\",\r\n    \"password\": \"test\"\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -87,15 +77,10 @@
 							}
 						},
 						"url": {
-							"raw": "http://127.0.0.1:5000/signup",
-							"protocol": "http",
+							"raw": "{{URN}}/signup",
 							"host": [
-								"127",
-								"0",
-								"0",
-								"1"
+								"{{URN}}"
 							],
-							"port": "5000",
 							"path": [
 								"signup"
 							]
@@ -115,14 +100,7 @@
 							"name": "get user",
 							"request": {
 								"auth": {
-									"type": "bearer",
-									"bearer": [
-										{
-											"key": "token",
-											"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTY3NDE5MzIyOCwianRpIjoiYjAxZWUyZGItZGEzOC00NmY3LTk3YjYtZDlhOGMxZDdlNDQ3IiwidHlwZSI6ImFjY2VzcyIsInN1YiI6MSwibmJmIjoxNjc0MTkzMjI4LCJleHAiOjE2NzQxOTY4Mjh9.M5RVMghsxzBQ6O1valqvZmMHFBiM-y6zYN_c0dM3gpA",
-											"type": "string"
-										}
-									]
+									"type": "noauth"
 								},
 								"method": "GET",
 								"header": [
@@ -134,18 +112,13 @@
 									}
 								],
 								"url": {
-									"raw": "http://127.0.0.1:5000/user/20",
-									"protocol": "http",
+									"raw": "{{URN}}/users/2",
 									"host": [
-										"127",
-										"0",
-										"0",
-										"1"
+										"{{URN}}"
 									],
-									"port": "5000",
 									"path": [
-										"user",
-										"20"
+										"users",
+										"2"
 									]
 								}
 							},
@@ -159,7 +132,7 @@
 									"bearer": [
 										{
 											"key": "token",
-											"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTY3NDIyMDc3NywianRpIjoiMGNjMmIyNmMtMmVmYS00YzNlLTkyZjQtZWExNzA3ZTljM2QxIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6MSwibmJmIjoxNjc0MjIwNzc3LCJleHAiOjE2NzQyMjQzNzd9.4ePDV1pzslOZcNbRxwNR9I8IdbD1ErS1sTYQX_oCHog",
+											"value": "{{Token}}",
 											"type": "string"
 										}
 									]
@@ -168,7 +141,7 @@
 								"header": [],
 								"body": {
 									"mode": "raw",
-									"raw": "{\r\n    \"name\": \"nikos\"\r\n}",
+									"raw": "{\r\n    \"name\": \"test2\",\r\n    \"description\": \"My name is test!\"\r\n}",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -176,17 +149,13 @@
 									}
 								},
 								"url": {
-									"raw": "http://127.0.0.1:5000/user",
-									"protocol": "http",
+									"raw": "{{URN}}/users/100003",
 									"host": [
-										"127",
-										"0",
-										"0",
-										"1"
+										"{{URN}}"
 									],
-									"port": "5000",
 									"path": [
-										"user"
+										"users",
+										"100003"
 									]
 								}
 							},
@@ -200,7 +169,7 @@
 									"bearer": [
 										{
 											"key": "token",
-											"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTY3NDIwMzYzOSwianRpIjoiZjIyOTE2NTUtZjg5Ni00Yzg0LTlhMWUtMDVhYmNhMmIzYjk1IiwidHlwZSI6ImFjY2VzcyIsInN1YiI6MiwibmJmIjoxNjc0MjAzNjM5LCJleHAiOjE2NzQyMDcyMzl9.n6dO4SG8m77kcu8LFQVyBCJYXgm8_NOY55emMh-Z7ts",
+											"value": "{{Token}}",
 											"type": "string"
 										}
 									]
@@ -208,17 +177,13 @@
 								"method": "DELETE",
 								"header": [],
 								"url": {
-									"raw": "http://127.0.0.1:5000/user",
-									"protocol": "http",
+									"raw": "{{URN}}/users/100003",
 									"host": [
-										"127",
-										"0",
-										"0",
-										"1"
+										"{{URN}}"
 									],
-									"port": "5000",
 									"path": [
-										"user"
+										"users",
+										"100003"
 									]
 								}
 							},
@@ -242,7 +207,7 @@
 									"bearer": [
 										{
 											"key": "token",
-											"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTY3NDE5MzIyOCwianRpIjoiYjAxZWUyZGItZGEzOC00NmY3LTk3YjYtZDlhOGMxZDdlNDQ3IiwidHlwZSI6ImFjY2VzcyIsInN1YiI6MSwibmJmIjoxNjc0MTkzMjI4LCJleHAiOjE2NzQxOTY4Mjh9.M5RVMghsxzBQ6O1valqvZmMHFBiM-y6zYN_c0dM3gpA",
+											"value": "{{Token}}",
 											"type": "string"
 										}
 									]
@@ -251,7 +216,7 @@
 								"header": [],
 								"body": {
 									"mode": "raw",
-									"raw": "{\r\n    \"folder_settings_id\": 2\r\n}",
+									"raw": "{\r\n    \"name\": \"my copies\",\r\n    \"parent_folder_id\": null,\r\n    \"folder_settings_id\": 1\r\n}",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -259,19 +224,15 @@
 									}
 								},
 								"url": {
-									"raw": "http://127.0.0.1:5000/user/folder/8",
-									"protocol": "http",
+									"raw": "{{URN}}/users/1/folders/1000007",
 									"host": [
-										"127",
-										"0",
-										"0",
-										"1"
+										"{{URN}}"
 									],
-									"port": "5000",
 									"path": [
-										"user",
-										"folder",
-										"8"
+										"users",
+										"1",
+										"folders",
+										"1000007"
 									]
 								}
 							},
@@ -305,15 +266,15 @@
 									}
 								},
 								"url": {
-									"raw": "{{URN}}/users/1/folders/wew",
+									"raw": "{{URN}}/users/100012/folders/1000008",
 									"host": [
 										"{{URN}}"
 									],
 									"path": [
 										"users",
-										"1",
+										"100012",
 										"folders",
-										"wew"
+										"1000008"
 									]
 								}
 							},
@@ -335,14 +296,15 @@
 								"method": "DELETE",
 								"header": [],
 								"url": {
-									"raw": "{{URN}}/users/folders/8",
+									"raw": "{{URN}}/users/1/folders/9",
 									"host": [
 										"{{URN}}"
 									],
 									"path": [
 										"users",
+										"1",
 										"folders",
-										"8"
+										"9"
 									]
 								}
 							},
@@ -358,7 +320,7 @@
 							"bearer": [
 								{
 									"key": "token",
-									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTY3NDIyMDc3NywianRpIjoiMGNjMmIyNmMtMmVmYS00YzNlLTkyZjQtZWExNzA3ZTljM2QxIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6MSwibmJmIjoxNjc0MjIwNzc3LCJleHAiOjE2NzQyMjQzNzd9.4ePDV1pzslOZcNbRxwNR9I8IdbD1ErS1sTYQX_oCHog",
+									"value": "{{Token}}",
 									"type": "string"
 								}
 							]
@@ -367,7 +329,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"parent_folder\": 6\r\n}",
+							"raw": "{\r\n    \"name\": \"copy2\",\r\n    \"parent_folder_id\": null\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -375,18 +337,14 @@
 							}
 						},
 						"url": {
-							"raw": "http://127.0.0.1:5000/user/folder",
-							"protocol": "http",
+							"raw": "{{URN}}/users/1/folders",
 							"host": [
-								"127",
-								"0",
-								"0",
-								"1"
+								"{{URN}}"
 							],
-							"port": "5000",
 							"path": [
-								"user",
-								"folder"
+								"users",
+								"1",
+								"folders"
 							]
 						}
 					},
@@ -403,7 +361,7 @@
 							"bearer": [
 								{
 									"key": "token",
-									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTY3NDIyNDU0OSwianRpIjoiNjRmZGQwYzgtZjk0ZC00MjA5LWI0ZWQtZjM3OGQ2Mzc0MDE3IiwidHlwZSI6ImFjY2VzcyIsInN1YiI6MSwibmJmIjoxNjc0MjI0NTQ5LCJleHAiOjE2NzQyMjgxNDl9.eOmkl55-qWU_wSx-Y7hvcyH8l2kzjVTatDYS0_Meag4",
+									"value": "{{Token}}",
 									"type": "string"
 								}
 							]
@@ -412,7 +370,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"name\": \"b1\",\r\n    \"parent_folder\": 6\r\n}",
+							"raw": "",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -420,18 +378,14 @@
 							}
 						},
 						"url": {
-							"raw": "http://127.0.0.1:5000/user/folder",
-							"protocol": "http",
+							"raw": "{{URN}}/users/1/folders",
 							"host": [
-								"127",
-								"0",
-								"0",
-								"1"
+								"{{URN}}"
 							],
-							"port": "5000",
 							"path": [
-								"user",
-								"folder"
+								"users",
+								"1",
+								"folders"
 							]
 						}
 					},
@@ -448,8 +402,30 @@
 						{
 							"name": "get module",
 							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{Token}}",
+											"type": "string"
+										}
+									]
+								},
 								"method": "GET",
-								"header": []
+								"header": [],
+								"url": {
+									"raw": "{{URN}}/users/102/modules/1048",
+									"host": [
+										"{{URN}}"
+									],
+									"path": [
+										"users",
+										"102",
+										"modules",
+										"1048"
+									]
+								}
 							},
 							"response": []
 						},
@@ -470,7 +446,24 @@
 								"header": [],
 								"body": {
 									"mode": "raw",
-									"raw": ""
+									"raw": "{\r\n    \"name\": \"new_name\",\r\n    \"folder_id\": 1000010\r\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{URN}}/users/100012/modules/1000010",
+									"host": [
+										"{{URN}}"
+									],
+									"path": [
+										"users",
+										"100012",
+										"modules",
+										"1000010"
+									]
 								}
 							},
 							"response": []
@@ -478,17 +471,28 @@
 						{
 							"name": "delte module",
 							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{Token}}",
+											"type": "string"
+										}
+									]
+								},
 								"method": "DELETE",
 								"header": [],
 								"url": {
-									"raw": "{{URN}}/users/modules/3",
+									"raw": "{{URN}}/users/102/modules/1052",
 									"host": [
 										"{{URN}}"
 									],
 									"path": [
 										"users",
+										"102",
 										"modules",
-										"3"
+										"1052"
 									]
 								}
 							},
@@ -500,11 +504,21 @@
 								"disableBodyPruning": true
 							},
 							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{Token}}",
+											"type": "string"
+										}
+									]
+								},
 								"method": "COPY",
 								"header": [],
 								"body": {
 									"mode": "raw",
-									"raw": "{\r\n}",
+									"raw": "{\r\n    \"folder_id\": 1000008\r\n}",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -550,7 +564,7 @@
 								"header": [],
 								"body": {
 									"mode": "raw",
-									"raw": "{\r\n    \r\n}",
+									"raw": "{\r\n    \"tags\": [\"newnewnew\", \"food\"]\r\n}",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -558,14 +572,15 @@
 									}
 								},
 								"url": {
-									"raw": "{{URN}}/users/modules/1",
+									"raw": "{{URN}}/users/1/modules/1000005",
 									"host": [
 										"{{URN}}"
 									],
 									"path": [
 										"users",
+										"1",
 										"modules",
-										"1"
+										"1000005"
 									]
 								}
 							},
@@ -574,8 +589,36 @@
 						{
 							"name": "get public info",
 							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{Token}}",
+											"type": "string"
+										}
+									]
+								},
 								"method": "GET",
-								"header": []
+								"header": [],
+								"url": {
+									"raw": "{{URN}}/users/2/modules/2?public_info=True",
+									"host": [
+										"{{URN}}"
+									],
+									"path": [
+										"users",
+										"2",
+										"modules",
+										"2"
+									],
+									"query": [
+										{
+											"key": "public_info",
+											"value": "True"
+										}
+									]
+								}
 							},
 							"response": []
 						},
@@ -596,7 +639,7 @@
 								"header": [],
 								"body": {
 									"mode": "raw",
-									"raw": "{\r\n    \r\n}",
+									"raw": "{\r\n    \"comment\": \"cool!\",\r\n    \"evaluation_id\": 1\r\n}",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -604,15 +647,15 @@
 									}
 								},
 								"url": {
-									"raw": "{{URN}}/users/1/modules/1",
+									"raw": "{{URN}}/users/2/modules/2",
 									"host": [
 										"{{URN}}"
 									],
 									"path": [
 										"users",
-										"1",
+										"2",
 										"modules",
-										"1"
+										"2"
 									]
 								}
 							},
@@ -637,7 +680,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"name\": \"set\"\r\n}",
+							"raw": "{\r\n    \"name\": \"set\",\r\n    \"folder_id\": null\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -645,14 +688,13 @@
 							}
 						},
 						"url": {
-							"raw": "{{URN}}/users/folders/6/modules",
+							"raw": "{{URN}}/users/100012/modules",
 							"host": [
 								"{{URN}}"
 							],
 							"path": [
 								"users",
-								"folders",
-								"6",
+								"100012",
 								"modules"
 							]
 						}
@@ -667,7 +709,7 @@
 							"bearer": [
 								{
 									"key": "token",
-									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTY3NDM0MjkzNywianRpIjoiZDViNTU0NDctZTM4ZS00NmZhLTk3NTUtMDRlMjRhNTJkZmZlIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6MSwibmJmIjoxNjc0MzQyOTM3LCJleHAiOjE2NzQzNDY1Mzd9.YFIQMPY_GBujn7EKGr3X9WvaKweEWozb2HcsjIsemEQ",
+									"value": "{{Token}}",
 									"type": "string"
 								}
 							]
@@ -675,12 +717,13 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{URN}}/users/modules",
+							"raw": "{{URN}}/users/1/modules",
 							"host": [
 								"{{URN}}"
 							],
 							"path": [
 								"users",
+								"1",
 								"modules"
 							]
 						}
@@ -698,8 +741,32 @@
 						{
 							"name": "get card",
 							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{Token}}",
+											"type": "string"
+										}
+									]
+								},
 								"method": "GET",
-								"header": []
+								"header": [],
+								"url": {
+									"raw": "{{URN}}/users/100012/modules/1000013/cards/1",
+									"host": [
+										"{{URN}}"
+									],
+									"path": [
+										"users",
+										"100012",
+										"modules",
+										"1000013",
+										"cards",
+										"1"
+									]
+								}
 							},
 							"response": []
 						},
@@ -720,7 +787,7 @@
 								"header": [],
 								"body": {
 									"mode": "raw",
-									"raw": "",
+									"raw": "{\r\n    \"face\": \"dog\",\r\n    \"back\": \"собака\"\r\n}",
 									"options": {
 										"raw": {
 											"language": "json"
@@ -728,16 +795,17 @@
 									}
 								},
 								"url": {
-									"raw": "{{URN}}/users/modules/1/cards/1",
+									"raw": "{{URN}}/users/1/modules/1000005/cards/2",
 									"host": [
 										"{{URN}}"
 									],
 									"path": [
 										"users",
-										"modules",
 										"1",
+										"modules",
+										"1000005",
 										"cards",
-										"1"
+										"2"
 									]
 								}
 							},
@@ -759,16 +827,17 @@
 								"method": "DELETE",
 								"header": [],
 								"url": {
-									"raw": "{{URN}}/users/modules/1/cards/7",
+									"raw": "{{URN}}/users/1/modules/1000005/cards/1",
 									"host": [
 										"{{URN}}"
 									],
 									"path": [
 										"users",
-										"modules",
 										"1",
+										"modules",
+										"1000005",
 										"cards",
-										"7"
+										"1"
 									]
 								}
 							},
@@ -776,25 +845,49 @@
 						},
 						{
 							"name": "copy card",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
 							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{Token}}",
+											"type": "string"
+										}
+									]
+								},
 								"method": "COPY",
 								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n    \"module_id\": 1048\r\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
 								"url": {
-									"raw": "{{URN}}/users/modules/1/cards/1?module_id",
+									"raw": "{{URN}}/users/2/modules/2/cards/5",
 									"host": [
 										"{{URN}}"
 									],
 									"path": [
 										"users",
+										"2",
 										"modules",
-										"1",
+										"2",
 										"cards",
-										"1"
+										"5"
 									],
 									"query": [
 										{
-											"key": "module_id",
-											"value": null
+											"key": "",
+											"value": null,
+											"disabled": true
 										}
 									]
 								}
@@ -806,8 +899,38 @@
 				{
 					"name": "getAll cards",
 					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{Token}}",
+									"type": "string"
+								}
+							]
+						},
 						"method": "GET",
-						"header": []
+						"header": [],
+						"url": {
+							"raw": "{{URN}}/users/38448/modules/385594/cards",
+							"host": [
+								"{{URN}}"
+							],
+							"path": [
+								"users",
+								"38448",
+								"modules",
+								"385594",
+								"cards"
+							],
+							"query": [
+								{
+									"key": "ready",
+									"value": "True",
+									"disabled": true
+								}
+							]
+						}
 					},
 					"response": []
 				},
@@ -826,15 +949,25 @@
 						},
 						"method": "POST",
 						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"face\": \"question\",\r\n    \"back\": \"answer\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
 						"url": {
-							"raw": "{{URN}}/users/modules/1/cards",
+							"raw": "{{URN}}/users/100012/modules/1000013/cards",
 							"host": [
 								"{{URN}}"
 							],
 							"path": [
 								"users",
+								"100012",
 								"modules",
-								"1",
+								"1000013",
 								"cards"
 							]
 						}
@@ -847,10 +980,29 @@
 			"name": "tag",
 			"item": [
 				{
-					"name": "getAll tags",
+					"name": "get tags",
 					"request": {
 						"method": "GET",
-						"header": []
+						"header": [],
+						"url": {
+							"raw": "{{URN}}/tags?limit=10&start=newnewnew",
+							"host": [
+								"{{URN}}"
+							],
+							"path": [
+								"tags"
+							],
+							"query": [
+								{
+									"key": "limit",
+									"value": "10"
+								},
+								{
+									"key": "start",
+									"value": "newnewnew"
+								}
+							]
+						}
 					},
 					"response": []
 				}
@@ -863,7 +1015,27 @@
 					"name": "search",
 					"request": {
 						"method": "GET",
-						"header": []
+						"header": [],
+						"url": {
+							"raw": "{{URN}}/search?tag=newnewnew",
+							"host": [
+								"{{URN}}"
+							],
+							"path": [
+								"search"
+							],
+							"query": [
+								{
+									"key": "tag",
+									"value": "food",
+									"disabled": true
+								},
+								{
+									"key": "tag",
+									"value": "newnewnew"
+								}
+							]
+						}
 					},
 					"response": []
 				}
